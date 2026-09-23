@@ -1,0 +1,6 @@
+{
+  "name": "FLAME - IPL Fantasy League & Simulator",
+  "description": "IPL Fantasy League Architect & Simulation Engine (FLAME). Auction & draft, probabilistic T20 match simulations, IPL fantasy point scoring, live scorecards, and standings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
