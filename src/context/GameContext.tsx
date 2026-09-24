@@ -11,22 +11,54 @@ import {
   FantasyTransferRecord,
   FantasyTransfersState,
   BoosterId,
-  BoosterUsageState
+  BoosterUsageState,
+  SeasonArchive,
+  UserFantasyTeam,
+  FantasyManagerEntry
 } from '../types/fantasy';
 import { ALL_PLAYERS, getPlayerById } from '../data/players';
 import { IPL_FRANCHISES_PRESET, createInitialTeamFromPreset } from '../data/iplTeams';
 import { defaultBoosterState, getBoosterById, OFFICIAL_BOOSTERS } from '../data/boosters';
 import { generateLeagueFixtures, updateTeamStatsAndStandings, generatePlayoffFixtures } from '../engine/fixtures';
+import { computeFantasyLeaderboard } from '../engine/fantasyEngine';
 import { simulateT20Match } from '../engine/simulator';
+import { computeSeasonSummary, parseSeasonYears } from '../utils/seasonSummary';
 
 interface ValidationResult {
   valid: boolean;
   errors: string[];
 }
 
+export const DEFAULT_USER_FANTASY_XI = [
+  'p_kohli', 'p_rohit', 'p_ruturaj', 'p_pant', 'p_hardik',
+  'p_jadeja', 'p_russell', 'p_bumrah', 'p_kuldeep', 'p_chahal', 'p_arshdeep'
+];
+
+export const createDefaultUserFantasyTeam = (name: string = 'My Fantasy XI', emoji: string = '🔥'): UserFantasyTeam => {
+  return {
+    id: 'user_fantasy_team',
+    name,
+    shortCode: (name.replace(/[^a-zA-Z]/g, '').slice(0, 3) || 'MYF').toUpperCase(),
+    logoEmoji: emoji,
+    color: '#0284c7',
+    secondaryColor: '#f59e0b',
+    budget_remaining: 11.5,
+    playing_xi: [...DEFAULT_USER_FANTASY_XI],
+    roster: [...DEFAULT_USER_FANTASY_XI],
+    captain: 'p_kohli',
+    vice_captain: 'p_bumrah',
+    impact_sub: 'p_hardik',
+    substitutes: [],
+    totalFantasyPoints: 0,
+    matchdayPoints: {}
+  };
+};
+
 interface GameContextType {
   state: FLAMEState;
   humanTeam: Team;
+  userFantasyTeam: UserFantasyTeam;
+  fantasyLeaderboard: FantasyManagerEntry[];
   allTeams: Team[];
   currentMatchdayFixtures: Fixture[];
   lastCompletedFixture: Fixture | null;
@@ -63,6 +95,16 @@ interface GameContextType {
     chosenBaseFranchiseId?: string;
   }) => void;
   resetTournament: () => void;
+  startNewSeason: (params?: {
+    nextYear?: number;
+    seasonName?: string;
+    keepSameTeamName?: boolean;
+  }) => void;
+  openSeasonEndModal: () => void;
+  closeSeasonEndModal: () => void;
+  openNewSeasonModal: () => void;
+  openSeasonArchiveModal: () => void;
+  getSeasonSummary: () => SeasonArchive | null;
   openScorecardModal: (fixture: Fixture) => void;
   openLineupModal: () => void;
   openTransferModal: () => void;
@@ -72,6 +114,7 @@ interface GameContextType {
   setSelectedPlayer: (player: Player | null) => void;
   addPlayerToHumanRoster: (player: Player, cost: number) => void;
   advancePlayoffStage: () => void;
+  commitLiveMatchResult: (fixtureId: string, result: MatchSimulationResult) => void;
 }
 
 const STORAGE_KEY = 'FLAME_IPL_FANTASY_STATE_V1';
@@ -79,7 +122,7 @@ const STORAGE_KEY = 'FLAME_IPL_FANTASY_STATE_V1';
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Default Initial State (10 IPL Teams * 7 rounds / 14 matchdays = 70 League Matches)
+  // Default Initial State (10 Official IPL Teams * 7 rounds / 14 matchdays = 70 League Matches)
   const defaultMeta: LeagueMeta = {
     season: 'IPL 2026',
     current_matchday: 1,
@@ -99,17 +142,47 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     history: []
   };
 
+  const defaultFantasyTeam = createDefaultUserFantasyTeam();
+
   const [state, setState] = useState<FLAMEState>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed.league_meta && parsed.teams && parsed.teams.length > 0) {
+          // Guarantee all 10 real IPL teams exist and are not overwritten by a human team
+          const hasHumanInTeams = parsed.teams.some((t: Team) => t.is_human || t.id === 'human_team' || t.name === 'User XI');
+          if (hasHumanInTeams || parsed.teams.length !== 10) {
+            const initialPresets = IPL_FRANCHISES_PRESET.slice(0, 10);
+            parsed.teams = initialPresets.map(preset => createInitialTeamFromPreset(preset, false));
+            const completed = (parsed.fixtures || []).filter((f: Fixture) => f.isCompleted);
+            const { updatedTeams, leaderboard } = updateTeamStatsAndStandings(parsed.teams, completed);
+            parsed.teams = updatedTeams;
+            parsed.leaderboard = leaderboard;
+          }
+          if (!parsed.user_fantasy_team) {
+            parsed.user_fantasy_team = defaultFantasyTeam;
+          }
+          if (!parsed.fantasy_leaderboard) {
+            const completed = (parsed.fixtures || []).filter((f: Fixture) => f.isCompleted);
+            const { updatedUserTeam, fantasyLeaderboard } = computeFantasyLeaderboard(
+              parsed.user_fantasy_team,
+              completed
+            );
+            parsed.user_fantasy_team = updatedUserTeam;
+            parsed.fantasy_leaderboard = fantasyLeaderboard;
+          }
           if (!parsed.transfers_state) {
             parsed.transfers_state = defaultTransfersState;
           }
           if (!parsed.boosters_state) {
             parsed.boosters_state = defaultBoosterState;
+          }
+          if (!parsed.season_history) {
+            parsed.season_history = [];
+          }
+          if (parsed.show_season_end_modal === undefined) {
+            parsed.show_season_end_modal = false;
           }
           // Always ensure master player database is synced with the latest verified player roster
           parsed.allPlayers = ALL_PLAYERS;
@@ -122,24 +195,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Default bootstrap with all 10 IPL franchises (70 league matches)
     const initialPresets = IPL_FRANCHISES_PRESET.slice(0, 10);
-    const initialTeams = initialPresets.map((preset, idx) =>
-      createInitialTeamFromPreset(preset, idx === 0)
-    );
-    // Let human be T1
-    initialTeams[0].name = 'User XI';
-    initialTeams[0].shortCode = 'UXI';
-    initialTeams[0].is_human = true;
+    const initialTeams = initialPresets.map(preset => createInitialTeamFromPreset(preset, false));
 
     const initialFixtures = generateLeagueFixtures(initialTeams, 14);
     const { updatedTeams, leaderboard } = updateTeamStatsAndStandings(initialTeams, []);
+    const { updatedUserTeam, fantasyLeaderboard } = computeFantasyLeaderboard(defaultFantasyTeam, []);
 
     return {
       is_team_created: false,
       league_meta: defaultMeta,
       transfers_state: defaultTransfersState,
       boosters_state: defaultBoosterState,
+      season_history: [],
+      show_season_end_modal: false,
       teams: updatedTeams,
       leaderboard,
+      user_fantasy_team: updatedUserTeam,
+      fantasy_leaderboard: fantasyLeaderboard,
       current_fixture: initialFixtures[0] || null,
       fixtures: initialFixtures,
       allPlayers: ALL_PLAYERS,
@@ -166,9 +238,38 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [state]);
 
-  const humanTeam = useMemo(() => {
-    return state.teams.find(t => t.is_human) || state.teams[0];
-  }, [state.teams]);
+  const humanTeam: Team = useMemo(() => {
+    const ft = state.user_fantasy_team || defaultFantasyTeam;
+    return {
+      id: ft.id,
+      name: ft.name,
+      shortCode: ft.shortCode,
+      is_human: true,
+      budget_remaining: ft.budget_remaining,
+      roster: [...ft.roster],
+      playing_xi: [...ft.playing_xi],
+      captain: ft.captain,
+      vice_captain: ft.vice_captain,
+      impact_sub: ft.impact_sub || (ft.playing_xi.length > 0 ? ft.playing_xi[0] : ''),
+      substitutes: [...ft.substitutes],
+      color: ft.color,
+      secondaryColor: ft.secondaryColor,
+      logoEmoji: ft.logoEmoji,
+      stats: {
+        played: Object.keys(ft.matchdayPoints || {}).length,
+        won: 0,
+        lost: 0,
+        tied: 0,
+        points: 0,
+        runsScored: 0,
+        oversFaced: 0,
+        runsConceded: 0,
+        oversBowled: 0,
+        nrr: 0,
+        totalFantasyPoints: ft.totalFantasyPoints
+      }
+    };
+  }, [state.user_fantasy_team, defaultFantasyTeam]);
 
   const currentMatchdayFixtures = useMemo(() => {
     return state.fixtures.filter(f => f.matchday === state.league_meta.current_matchday);
@@ -274,46 +375,33 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // 5. Build Human Team with ONLY these 11 players
+    // 5. Build Human Fantasy Team with ONLY these 11 players across any of the 10 IPL franchises
     const availablePresets = IPL_FRANCHISES_PRESET.slice(0, 10);
-    const updatedTeams: Team[] = availablePresets.map((preset, idx) => {
-      if (idx === 0) {
-        const shortCode = (teamName.trim().slice(0, 3) || 'UXI').toUpperCase();
-        return {
-          id: 'human_team',
-          name: teamName.trim() || 'User XI',
-          shortCode,
-          is_human: true,
-          budget_remaining: Math.max(0, Math.round((100.0 - roundedCost) * 10) / 10),
-          roster: [...playingXI],
-          playing_xi: [...playingXI],
-          captain,
-          vice_captain: viceCaptain,
-          impact_sub: playingXI[0],
-          substitutes: [],
-          color: baseColor || '#0284c7',
-          secondaryColor: '#f59e0b',
-          logoEmoji: logoEmoji || '⚡',
-          stats: {
-            played: 0,
-            won: 0,
-            lost: 0,
-            tied: 0,
-            points: 0,
-            runsScored: 0,
-            oversFaced: 0,
-            runsConceded: 0,
-            oversBowled: 0,
-            nrr: 0,
-            totalFantasyPoints: 0
-          }
-        };
-      }
-      return createInitialTeamFromPreset(preset, false);
-    });
+    const updated10Teams: Team[] = availablePresets.map(preset =>
+      createInitialTeamFromPreset(preset, false)
+    );
 
-    const newFixtures = generateLeagueFixtures(updatedTeams, 14);
-    const { updatedTeams: standingTeams, leaderboard } = updateTeamStatsAndStandings(updatedTeams, []);
+    const newUserFantasyTeam: UserFantasyTeam = {
+      id: 'user_fantasy_team',
+      name: teamName.trim() || 'My Fantasy XI',
+      shortCode: (teamName.trim().replace(/[^a-zA-Z]/g, '').slice(0, 3) || 'MYF').toUpperCase(),
+      logoEmoji: logoEmoji || '🔥',
+      color: baseColor || '#0284c7',
+      secondaryColor: '#f59e0b',
+      budget_remaining: Math.max(0, Math.round((100.0 - roundedCost) * 10) / 10),
+      playing_xi: [...playingXI],
+      roster: [...playingXI],
+      captain,
+      vice_captain: viceCaptain,
+      impact_sub: playingXI[0],
+      substitutes: [],
+      totalFantasyPoints: 0,
+      matchdayPoints: {}
+    };
+
+    const newFixtures = generateLeagueFixtures(updated10Teams, 14);
+    const { updatedTeams: standingTeams, leaderboard } = updateTeamStatsAndStandings(updated10Teams, []);
+    const { updatedUserTeam, fantasyLeaderboard } = computeFantasyLeaderboard(newUserFantasyTeam, []);
 
     const newTransfers: FantasyTransfersState = {
       league_transfers_remaining: 100,
@@ -330,6 +418,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       is_team_created: true,
       teams: standingTeams,
       leaderboard,
+      user_fantasy_team: updatedUserTeam,
+      fantasy_leaderboard: fantasyLeaderboard,
       fixtures: newFixtures,
       current_fixture: newFixtures[0] || null,
       transfers_state: newTransfers,
@@ -435,24 +525,24 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Reset Tournament
   const resetTournament = () => {
     localStorage.removeItem(STORAGE_KEY);
-    const initialPresets = IPL_FRANCHISES_PRESET.slice(0, 8);
-    const initialTeams = initialPresets.map((preset, idx) =>
-      createInitialTeamFromPreset(preset, idx === 0)
-    );
-    initialTeams[0].name = 'User XI';
-    initialTeams[0].shortCode = 'UXI';
-    initialTeams[0].is_human = true;
+    const initialPresets = IPL_FRANCHISES_PRESET.slice(0, 10);
+    const initialTeams = initialPresets.map(preset => createInitialTeamFromPreset(preset, false));
 
     const initialFixtures = generateLeagueFixtures(initialTeams, 14);
     const { updatedTeams, leaderboard } = updateTeamStatsAndStandings(initialTeams, []);
+    const { updatedUserTeam, fantasyLeaderboard } = computeFantasyLeaderboard(defaultFantasyTeam, []);
 
-    setState({
+    setState(prev => ({
       is_team_created: false,
       league_meta: defaultMeta,
       transfers_state: defaultTransfersState,
       boosters_state: defaultBoosterState,
+      season_history: prev.season_history || [],
+      show_season_end_modal: false,
       teams: updatedTeams,
       leaderboard,
+      user_fantasy_team: updatedUserTeam,
+      fantasy_leaderboard: fantasyLeaderboard,
       current_fixture: initialFixtures[0] || null,
       fixtures: initialFixtures,
       allPlayers: ALL_PLAYERS,
@@ -467,7 +557,109 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           output: '🔄 League state reset. Create your team name and pick your 11 players!'
         }
       ]
-    });
+    }));
+  };
+
+  // Compute Current Season Summary / Accolades
+  const getSeasonSummary = (): SeasonArchive | null => {
+    return computeSeasonSummary(state);
+  };
+
+  // Start New Season & Pick New Team for Next Year
+  const startNewSeason = (params?: {
+    nextYear?: number;
+    seasonName?: string;
+    keepSameTeamName?: boolean;
+  }) => {
+    const summary = computeSeasonSummary(state);
+    const { nextYear, nextSeasonName: defaultNextName } = parseSeasonYears(state.league_meta.season);
+    const resolvedNextYear = params?.nextYear || nextYear;
+    const resolvedSeasonName = params?.seasonName?.trim() || `IPL ${resolvedNextYear}`;
+
+    // Archive current completed season to Franchise Trophy Cabinet if summary exists & matches were played
+    let updatedHistory = state.season_history || [];
+    const completedMatches = state.fixtures.filter(f => f.isCompleted).length;
+
+    if (summary && completedMatches > 0) {
+      updatedHistory = [
+        summary,
+        ...updatedHistory.filter(h => h.season !== state.league_meta.season)
+      ];
+    }
+
+    const initialPresets = IPL_FRANCHISES_PRESET.slice(0, 10);
+    const freshTeams = initialPresets.map(preset => createInitialTeamFromPreset(preset, false));
+
+    const prevTeamName = params?.keepSameTeamName ? humanTeam.name : 'My Fantasy XI';
+    const freshUserFantasyTeam: UserFantasyTeam = {
+      id: 'user_fantasy_team',
+      name: prevTeamName,
+      shortCode: (prevTeamName.replace(/[^a-zA-Z]/g, '').slice(0, 3) || 'MYF').toUpperCase(),
+      logoEmoji: humanTeam.logoEmoji || '🔥',
+      color: humanTeam.color || '#0284c7',
+      secondaryColor: '#f59e0b',
+      budget_remaining: 100.0,
+      playing_xi: [],
+      roster: [],
+      captain: '',
+      vice_captain: '',
+      impact_sub: '',
+      substitutes: [],
+      totalFantasyPoints: 0,
+      matchdayPoints: {}
+    };
+
+    const freshFixtures = generateLeagueFixtures(freshTeams, 14);
+    const { updatedTeams, leaderboard } = updateTeamStatsAndStandings(freshTeams, []);
+    const { updatedUserTeam, fantasyLeaderboard } = computeFantasyLeaderboard(freshUserFantasyTeam, []);
+
+    const newLeagueMeta: LeagueMeta = {
+      season: resolvedSeasonName,
+      current_matchday: 1,
+      total_matchdays: 14,
+      playoffs_stage: 'League',
+      draft_type: 'baseline',
+      league_size: 10
+    };
+
+    const newTransfersState: FantasyTransfersState = {
+      league_transfers_remaining: 100,
+      league_transfers_total: 100,
+      playoffs_transfers_remaining: 10,
+      playoffs_transfers_total: 10,
+      is_unlimited_window: false,
+      playoffs_started: false,
+      history: []
+    };
+
+    const nextState: FLAMEState = {
+      is_team_created: false, // Opens team creator so user can draft brand new 11 & pick team name for the new year!
+      league_meta: newLeagueMeta,
+      transfers_state: newTransfersState,
+      boosters_state: defaultBoosterState,
+      season_history: updatedHistory,
+      show_season_end_modal: false,
+      teams: updatedTeams,
+      leaderboard,
+      user_fantasy_team: updatedUserTeam,
+      fantasy_leaderboard: fantasyLeaderboard,
+      current_fixture: freshFixtures[0] || null,
+      fixtures: freshFixtures,
+      allPlayers: ALL_PLAYERS,
+      activeModal: 'none',
+      selectedFixtureForScorecard: null,
+      selectedPlayerForDetails: null,
+      commandHistory: [
+        {
+          id: `new_season_${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          command: `/new-season [${resolvedSeasonName}]`,
+          output: `🎆 Welcome to ${resolvedSeasonName}! Brand new 70-match league schedule generated with 100 fresh transfers and all 10 boosters restored. Pick your team name and 11 players to begin your title campaign!`
+        }
+      ]
+    };
+
+    setState(nextState);
   };
 
   // Update Lineup (Dream11 Rule Engine: 100 Credits, 11 Players, 100 League Transfers for 70 Matches, Unlimited Playoffs Window, 10 Playoff Transfers)
@@ -562,24 +754,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } : null;
 
     setState(prev => {
-      // Ensure all playingXI players are registered in human roster
-      const currentHuman = prev.teams.find(t => t.is_human);
-      const updatedRoster = Array.from(new Set([...(currentHuman?.roster || []), ...playingXI]));
-      const finalSubs = substitutes || currentHuman?.substitutes || [];
+      const currentFantasy = prev.user_fantasy_team || defaultFantasyTeam;
+      const updatedRoster = Array.from(new Set([...(currentFantasy.roster || []), ...playingXI]));
+      const finalSubs = substitutes || currentFantasy.substitutes || [];
 
-      const updatedTeams = prev.teams.map(t => {
-        if (!t.is_human) return t;
-        return {
-          ...t,
-          roster: updatedRoster,
-          playing_xi: [...playingXI],
-          captain,
-          vice_captain: viceCaptain,
-          impact_sub: impactSub || finalSubs[0] || playingXI[0],
-          substitutes: finalSubs,
-          budget_remaining: Math.round((100.0 - roundedCredits) * 10) / 10
-        };
-      });
+      const updatedUserFantasyTeam: UserFantasyTeam = {
+        ...currentFantasy,
+        roster: updatedRoster,
+        playing_xi: [...playingXI],
+        captain,
+        vice_captain: viceCaptain,
+        impact_sub: impactSub || finalSubs[0] || playingXI[0],
+        substitutes: finalSubs,
+        budget_remaining: Math.round((100.0 - roundedCredits) * 10) / 10
+      };
+
+      const completed = prev.fixtures.filter(f => f.isCompleted);
+      const { updatedUserTeam, fantasyLeaderboard } = computeFantasyLeaderboard(
+        updatedUserFantasyTeam,
+        completed,
+        prev.boosters_state?.activeBoosterForNextMatch
+      );
 
       const updatedTransfers: FantasyTransfersState = {
         ...(prev.transfers_state || defaultTransfersState),
@@ -600,7 +795,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {
         ...prev,
-        teams: updatedTeams,
+        user_fantasy_team: updatedUserTeam,
+        fantasy_leaderboard: fantasyLeaderboard,
         transfers_state: updatedTransfers,
         commandHistory: [
           ...prev.commandHistory,
@@ -709,19 +905,24 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let newSubs = humanTeam.substitutes.map(id => (id === dropPlayerId ? addPlayerId : id));
 
     setState(prev => {
-      const updatedTeams = prev.teams.map(t => {
-        if (!t.is_human) return t;
-        return {
-          ...t,
-          roster: newRoster,
-          playing_xi: newXI,
-          captain: newCaptain,
-          vice_captain: newVC,
-          impact_sub: newImpact,
-          substitutes: newSubs,
-          budget_remaining: Math.round((t.budget_remaining - costDiff) * 100) / 100
-        };
-      });
+      const currentFantasy = prev.user_fantasy_team || defaultFantasyTeam;
+      const updatedUserFantasyTeam: UserFantasyTeam = {
+        ...currentFantasy,
+        roster: newRoster,
+        playing_xi: newXI,
+        captain: newCaptain,
+        vice_captain: newVC,
+        impact_sub: newImpact,
+        substitutes: newSubs,
+        budget_remaining: Math.round((currentFantasy.budget_remaining - costDiff) * 100) / 100
+      };
+
+      const completed = prev.fixtures.filter(f => f.isCompleted);
+      const { updatedUserTeam, fantasyLeaderboard } = computeFantasyLeaderboard(
+        updatedUserFantasyTeam,
+        completed,
+        prev.boosters_state?.activeBoosterForNextMatch
+      );
 
       const updatedTransfers: FantasyTransfersState = {
         ...(prev.transfers_state || defaultTransfersState),
@@ -751,7 +952,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {
         ...prev,
-        teams: updatedTeams,
+        user_fantasy_team: updatedUserTeam,
+        fantasy_leaderboard: fantasyLeaderboard,
         transfers_state: updatedTransfers,
         boosters_state: updatedBoosters,
         commandHistory: [
@@ -775,29 +977,114 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Add player to roster during auction
   const addPlayerToHumanRoster = (player: Player, cost: number) => {
     setState(prev => {
-      const updatedTeams = prev.teams.map(t => {
-        if (!t.is_human) return t;
-        const newRoster = [...t.roster, player.id];
-        let newXI = [...t.playing_xi];
-        if (newXI.length < 11) newXI.push(player.id);
-        const newCaptain = t.captain || (newXI.length > 0 ? newXI[0] : '');
-        const newVC = t.vice_captain || (newXI.length > 1 ? newXI[1] : '');
-        const newImpact = t.impact_sub || (newXI.length > 0 ? newXI[0] : '');
+      const currentFantasy = prev.user_fantasy_team || defaultFantasyTeam;
+      const newRoster = [...currentFantasy.roster, player.id];
+      let newXI = [...currentFantasy.playing_xi];
+      if (newXI.length < 11) newXI.push(player.id);
+      const newCaptain = currentFantasy.captain || (newXI.length > 0 ? newXI[0] : '');
+      const newVC = currentFantasy.vice_captain || (newXI.length > 1 ? newXI[1] : '');
+      const newImpact = currentFantasy.impact_sub || (newXI.length > 0 ? newXI[0] : '');
 
-        return {
-          ...t,
-          roster: newRoster,
-          playing_xi: newXI,
-          captain: newCaptain,
-          vice_captain: newVC,
-          impact_sub: newImpact,
-          budget_remaining: Math.round((t.budget_remaining - cost) * 100) / 100
-        };
-      });
+      const updatedUserFantasyTeam: UserFantasyTeam = {
+        ...currentFantasy,
+        roster: newRoster,
+        playing_xi: newXI,
+        captain: newCaptain,
+        vice_captain: newVC,
+        impact_sub: newImpact,
+        budget_remaining: Math.round((currentFantasy.budget_remaining - cost) * 100) / 100
+      };
+
+      const completed = prev.fixtures.filter(f => f.isCompleted);
+      const { updatedUserTeam, fantasyLeaderboard } = computeFantasyLeaderboard(
+        updatedUserFantasyTeam,
+        completed,
+        prev.boosters_state?.activeBoosterForNextMatch
+      );
 
       return {
         ...prev,
-        teams: updatedTeams
+        user_fantasy_team: updatedUserTeam,
+        fantasy_leaderboard: fantasyLeaderboard
+      };
+    });
+  };
+
+  // Commit result from Live Match Viewer Room
+  const commitLiveMatchResult = (fixtureId: string, result: MatchSimulationResult) => {
+    setState(prev => {
+      const updatedFixtures = prev.fixtures.map(f => {
+        if (f.id === fixtureId) {
+          return {
+            ...f,
+            isCompleted: true,
+            result
+          };
+        }
+        return f;
+      });
+
+      const allCompleted = updatedFixtures.filter(f => f.isCompleted);
+      const { updatedTeams, leaderboard } = updateTeamStatsAndStandings(prev.teams, allCompleted);
+      const currentFantasy = prev.user_fantasy_team || defaultFantasyTeam;
+      const { updatedUserTeam, fantasyLeaderboard } = computeFantasyLeaderboard(
+        currentFantasy,
+        allCompleted,
+        prev.boosters_state?.activeBoosterForNextMatch
+      );
+
+      // Check if all fixtures for current round are now done
+      const currentDayFixtures = updatedFixtures.filter(f => f.matchday === prev.league_meta.current_matchday);
+      const allCurrentDayDone = currentDayFixtures.length > 0 && currentDayFixtures.every(f => f.isCompleted);
+
+      let nextMatchday = prev.league_meta.current_matchday;
+      let nextStage = prev.league_meta.playoffs_stage;
+      let finalFixtures = updatedFixtures;
+      let updatedTransfersState = { ...(prev.transfers_state || defaultTransfersState) };
+
+      if (allCurrentDayDone) {
+        if (prev.league_meta.current_matchday >= prev.league_meta.total_matchdays && prev.league_meta.playoffs_stage === 'League') {
+          nextStage = 'Qualifier 1';
+          nextMatchday = 15;
+          const playoffFixtures = generatePlayoffFixtures(leaderboard, 'Qualifier 1');
+          finalFixtures = [...updatedFixtures, ...playoffFixtures];
+          updatedTransfersState.is_unlimited_window = true;
+          updatedTransfersState.playoffs_started = false;
+        } else if (prev.league_meta.playoffs_stage === 'League') {
+          nextMatchday += 1;
+        }
+      }
+
+      const isFinalJustCompleted = finalFixtures.some(f => f.playoffLabel === 'Final' && f.isCompleted);
+      if (isFinalJustCompleted) {
+        nextStage = 'Completed';
+      }
+
+      return {
+        ...prev,
+        league_meta: {
+          ...prev.league_meta,
+          current_matchday: nextMatchday,
+          playoffs_stage: nextStage
+        },
+        transfers_state: updatedTransfersState,
+        show_season_end_modal: isFinalJustCompleted ? true : prev.show_season_end_modal,
+        teams: updatedTeams,
+        leaderboard,
+        user_fantasy_team: updatedUserTeam,
+        fantasy_leaderboard: fantasyLeaderboard,
+        fixtures: finalFixtures,
+        current_fixture: finalFixtures.find(f => f.matchday === nextMatchday && !f.isCompleted) || null,
+        selectedFixtureForScorecard: updatedFixtures.find(f => f.id === fixtureId) || null,
+        commandHistory: [
+          ...prev.commandHistory,
+          {
+            id: `live_${Date.now()}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            command: `/live [Match #${fixtureId.replace('fix_', '')}]`,
+            output: `🏏 Live match completed: ${result.margin}. POTM: ${result.playerOfTheMatch.name}. Standings and fantasy scores synchronized!`
+          }
+        ]
       };
     });
   };
@@ -845,6 +1132,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     let boosterSummaryMsg = '';
+    const currentFantasy = state.user_fantasy_team || defaultFantasyTeam;
+    let nextUserFantasy = { ...currentFantasy };
+
     if (activeBooster) {
       const boosterDef = getBoosterById(activeBooster);
       const remaining = Math.max(0, (nextBoostersState.remainingUses[activeBooster] ?? 1) - 1);
@@ -869,18 +1159,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // If Free Hit was used, restore the pre-Free Hit playing XI
       if (activeBooster === 'free_hit' && nextBoostersState.savedFreeHitLineup) {
-        const originalXI = [...nextBoostersState.savedFreeHitLineup];
-        updatedTeams = updatedTeams.map(t => {
-          if (!t.is_human) return t;
-          return {
-            ...t,
-            playing_xi: originalXI
-          };
-        });
+        nextUserFantasy.playing_xi = [...nextBoostersState.savedFreeHitLineup];
         nextBoostersState.savedFreeHitLineup = null;
         boosterSummaryMsg += ' Free Hit concluded: Original starting 11 restored!';
       }
     }
+
+    const { updatedUserTeam, fantasyLeaderboard } = computeFantasyLeaderboard(
+      nextUserFantasy,
+      allCompleted,
+      activeBooster
+    );
 
     const isLastLeagueDay = state.league_meta.current_matchday >= state.league_meta.total_matchdays;
     let nextStage: PlayoffsStage = state.league_meta.playoffs_stage;
@@ -915,6 +1204,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
+    const isFinalJustCompleted = finalFixtures.some(f => f.playoffLabel === 'Final' && f.isCompleted);
+    let triggerSeasonEndModal = false;
+    if (isFinalJustCompleted) {
+      nextStage = 'Completed';
+      triggerSeasonEndModal = true;
+      playoffNotice += ' 🏆 TATA IPL FINAL IS COMPLETE! CHAMPIONS CROWNED! Season is wrapped up. Review awards, or start a new year and draft a new team!';
+    }
+
     setState(prev => ({
       ...prev,
       league_meta: {
@@ -924,8 +1221,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
       transfers_state: updatedTransfersState,
       boosters_state: nextBoostersState,
+      show_season_end_modal: triggerSeasonEndModal ? true : prev.show_season_end_modal,
       teams: updatedTeams,
       leaderboard,
+      user_fantasy_team: updatedUserTeam,
+      fantasy_leaderboard: fantasyLeaderboard,
       fixtures: finalFixtures,
       current_fixture: finalFixtures.find(f => f.matchday === nextMatchday && !f.isCompleted) || null,
       selectedFixtureForScorecard: results[0] ? finalFixtures.find(f => f.id === results[0].fixtureId) || null : null,
@@ -996,6 +1296,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const finalCompleted = currentFixtures.filter(f => f.isCompleted);
     const { updatedTeams, leaderboard } = updateTeamStatsAndStandings(currentTeams, finalCompleted);
+    const currentFantasy = state.user_fantasy_team || defaultFantasyTeam;
+    const { updatedUserTeam, fantasyLeaderboard } = computeFantasyLeaderboard(
+      currentFantasy,
+      finalCompleted
+    );
+
+    const isFinalDone = currentFixtures.some(f => f.playoffLabel === 'Final' && f.isCompleted);
+    if (isFinalDone) {
+      currentStage = 'Completed';
+    }
 
     const reachedPlayoffsNow = currentMatchday >= 15 && state.league_meta.playoffs_stage === 'League';
     const updatedTransfers: FantasyTransfersState = reachedPlayoffsNow
@@ -1014,8 +1324,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         playoffs_stage: currentStage
       },
       transfers_state: updatedTransfers,
+      show_season_end_modal: isFinalDone ? true : prev.show_season_end_modal,
       teams: updatedTeams,
       leaderboard,
+      user_fantasy_team: updatedUserTeam,
+      fantasy_leaderboard: fantasyLeaderboard,
       fixtures: currentFixtures,
       current_fixture: currentFixtures.find(f => f.matchday === currentMatchday && !f.isCompleted) || null,
       selectedFixtureForScorecard: lastResults.length > 0 ? currentFixtures.find(f => f.id === lastResults[lastResults.length - 1].fixtureId) || null : null,
@@ -1027,7 +1340,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           command: `/fast-forward ${n}`,
           output: `⚡ Fast-forwarded ${count} matchdays. League is now at Matchday ${currentMatchday} (${currentStage}). Standings consolidated.${
             reachedPlayoffsNow ? ' 🎉 Reached playoffs! Unlimited transfers window activated!' : ''
-          }`
+          }${isFinalDone ? ' 🏆 Season Completed! Champions crowned!' : ''}`
         }
       ]
     }));
@@ -1095,6 +1408,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           fixtures: [...prev.fixtures, finalFix]
         }));
       }
+    } else if (state.league_meta.playoffs_stage === 'Final') {
+      simulateCurrentMatchday();
     }
   };
 
@@ -1212,6 +1527,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         break;
       }
 
+      case '/new-season': {
+        const nextName = args.trim() || undefined;
+        startNewSeason({ seasonName: nextName });
+        output = `🎆 Starting new season ${nextName || 'next year'}! Team creator opened.`;
+        break;
+      }
+
+      case '/history':
+      case '/trophies': {
+        setState(prev => ({ ...prev, activeModal: 'season_archive' }));
+        output = `📜 Opening Trophy Cabinet (${state.season_history?.length || 0} archived seasons).`;
+        break;
+      }
+
       case '/transfers': {
         const tr = state.transfers_state || defaultTransfersState;
         const isPl = tr.playoffs_started;
@@ -1233,6 +1562,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           '• /scorecard : Display official box score and fantasy breakdown of last completed match\n' +
           '• /transfer [Drop Player] for [Add Player] : Swap players within purse limits\n' +
           '• /fast-forward [N] : Simulate N matchdays automatically and consolidate standings\n' +
+          '• /new-season [Name] : Advance to next year and draft a new fantasy squad\n' +
+          '• /history : View Trophy Cabinet & past season champions\n' +
           '• /reset : Reset tournament and start a new season';
         break;
       }
@@ -1272,7 +1603,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const openTransferModal = () => setState(prev => ({ ...prev, activeModal: 'transfer' }));
   const openAuctionModal = () => setState(prev => ({ ...prev, activeModal: 'auction' }));
   const openBoostersModal = () => setState(prev => ({ ...prev, activeModal: 'boosters' }));
-  const closeModals = () => setState(prev => ({ ...prev, activeModal: 'none' }));
+  const openNewSeasonModal = () => setState(prev => ({ ...prev, activeModal: 'new_season' }));
+  const openSeasonArchiveModal = () => setState(prev => ({ ...prev, activeModal: 'season_archive' }));
+  const openSeasonEndModal = () => setState(prev => ({ ...prev, show_season_end_modal: true }));
+  const closeSeasonEndModal = () => setState(prev => ({ ...prev, show_season_end_modal: false }));
+  const closeModals = () => setState(prev => ({ ...prev, activeModal: 'none', show_season_end_modal: false }));
   const setSelectedPlayer = (player: Player | null) => setState(prev => ({ ...prev, selectedPlayerForDetails: player }));
 
   const activateBooster = (boosterId: BoosterId): { success: boolean; message: string } => {
@@ -1384,6 +1719,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         state,
         humanTeam,
+        userFantasyTeam: state.user_fantasy_team || defaultFantasyTeam,
+        fantasyLeaderboard: state.fantasy_leaderboard || [],
         allTeams: state.teams,
         currentMatchdayFixtures,
         lastCompletedFixture,
@@ -1402,6 +1739,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createInitialFantasyTeam,
         initTournament,
         resetTournament,
+        startNewSeason,
+        openSeasonEndModal,
+        closeSeasonEndModal,
+        openNewSeasonModal,
+        openSeasonArchiveModal,
+        getSeasonSummary,
         openScorecardModal,
         openLineupModal,
         openTransferModal,
@@ -1410,7 +1753,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         closeModals,
         setSelectedPlayer,
         addPlayerToHumanRoster,
-        advancePlayoffStage
+        advancePlayoffStage,
+        commitLiveMatchResult
       }}
     >
       {children}

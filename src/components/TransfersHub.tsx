@@ -222,7 +222,7 @@ export const TransfersHub: React.FC<TransfersHubProps> = ({ onOpenSchedule }) =>
         </div>
 
         {(!transfers?.history || transfers.history.length === 0) ? (
-          <div className="p-12 text-center text-slate-400 space-y-2">
+          <div className="p-8 sm:p-12 text-center text-slate-400 space-y-2">
             <ArrowRightLeft className="w-8 h-8 mx-auto text-slate-600 mb-2" />
             <p className="text-sm font-medium text-slate-300">You haven't made any transfers yet.</p>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
@@ -230,60 +230,111 @@ export const TransfersHub: React.FC<TransfersHubProps> = ({ onOpenSchedule }) =>
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-sans">
-              <thead className="bg-[#050c1e] text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                <tr>
-                  <th className="px-6 py-3">Matchday</th>
-                  <th className="px-6 py-3">Time</th>
-                  <th className="px-6 py-3">Player In</th>
-                  <th className="px-6 py-3">Player Out</th>
-                  <th className="px-6 py-3">Stage</th>
-                  <th className="px-6 py-3 text-right">Transfers Remaining</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-indigo-950/80 font-mono">
-                {transfers.history.map(record => {
-                  const playerIn = getPlayerById(record.playersIn[0]);
-                  const playerOut = getPlayerById(record.playersOut[0]);
+          <div className="w-full max-w-full overflow-hidden">
+            {/* Mobile Cards (< 640px) */}
+            <div className="sm:hidden divide-y divide-indigo-950/80">
+              {transfers.history.map(record => {
+                const playerIn = getPlayerById(record.playersIn[0]);
+                const playerOut = getPlayerById(record.playersOut[0]);
 
-                  return (
-                    <tr key={record.id} className="hover:bg-indigo-950/40 transition">
-                      <td className="px-6 py-3 text-slate-300 font-bold">
-                        MD {record.matchday}
-                      </td>
-                      <td className="px-6 py-3 text-slate-400 text-[11px]">
-                        {record.timestamp}
-                      </td>
-                      <td className="px-6 py-3 text-emerald-400 font-bold flex items-center gap-1.5">
-                        <span className="text-xs">+</span>
-                        <span>{playerIn ? playerIn.name : record.playersIn[0]}</span>
-                        <span className="text-[10px] font-normal text-slate-400 font-mono">
-                          (₹{playerIn?.currentPrice} Cr)
+                return (
+                  <div key={record.id} className="p-3.5 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center space-x-2">
+                        <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-mono font-bold text-[10px]">
+                          MD {record.matchday}
                         </span>
-                      </td>
-                      <td className="px-6 py-3 text-rose-400 font-bold">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="text-xs">-</span>
-                          <span>{playerOut ? playerOut.name : record.playersOut[0]}</span>
-                          <span className="text-[10px] font-normal text-slate-400 font-mono">
-                            (₹{playerOut?.currentPrice} Cr)
-                          </span>
-                        </span>
-                      </td>
-                      <td className="px-6 py-3">
-                        <span className="bg-indigo-950 text-indigo-300 border border-indigo-800/60 px-2 py-0.5 rounded text-[10px] uppercase font-bold">
+                        <span className="bg-indigo-950 text-indigo-300 border border-indigo-800/60 px-1.5 py-0.2 rounded text-[9px] uppercase font-bold">
                           {record.stage}
                         </span>
-                      </td>
-                      <td className="px-6 py-3 text-right font-bold text-amber-300">
-                        {record.remainingAfter}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono">
+                        Bal: <strong className="text-amber-300">{record.remainingAfter}</strong> left
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-emerald-400 font-bold flex items-center gap-1">
+                          <span>+ In:</span>
+                          <span className="text-white">{playerIn ? playerIn.name : record.playersIn[0]}</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          ₹{playerIn?.currentPrice} Cr
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-rose-400 font-bold flex items-center gap-1">
+                          <span>- Out:</span>
+                          <span className="text-slate-300">{playerOut ? playerOut.name : record.playersOut[0]}</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          ₹{playerOut?.currentPrice} Cr
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop / Tablet Table (>= 640px) */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-left text-xs font-sans">
+                <thead className="bg-[#050c1e] text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+                  <tr>
+                    <th className="px-6 py-3">Matchday</th>
+                    <th className="px-6 py-3">Time</th>
+                    <th className="px-6 py-3">Player In</th>
+                    <th className="px-6 py-3">Player Out</th>
+                    <th className="px-6 py-3">Stage</th>
+                    <th className="px-6 py-3 text-right">Transfers Remaining</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-indigo-950/80 font-mono">
+                  {transfers.history.map(record => {
+                    const playerIn = getPlayerById(record.playersIn[0]);
+                    const playerOut = getPlayerById(record.playersOut[0]);
+
+                    return (
+                      <tr key={record.id} className="hover:bg-indigo-950/40 transition">
+                        <td className="px-6 py-3 text-slate-300 font-bold">
+                          MD {record.matchday}
+                        </td>
+                        <td className="px-6 py-3 text-slate-400 text-[11px]">
+                          {record.timestamp}
+                        </td>
+                        <td className="px-6 py-3 text-emerald-400 font-bold flex items-center gap-1.5">
+                          <span className="text-xs">+</span>
+                          <span>{playerIn ? playerIn.name : record.playersIn[0]}</span>
+                          <span className="text-[10px] font-normal text-slate-400 font-mono">
+                            (₹{playerIn?.currentPrice} Cr)
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 text-rose-400 font-bold">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="text-xs">-</span>
+                            <span>{playerOut ? playerOut.name : record.playersOut[0]}</span>
+                            <span className="text-[10px] font-normal text-slate-400 font-mono">
+                              (₹{playerOut?.currentPrice} Cr)
+                            </span>
+                          </span>
+                        </td>
+                        <td className="px-6 py-3">
+                          <span className="bg-indigo-950 text-indigo-300 border border-indigo-800/60 px-2 py-0.5 rounded text-[10px] uppercase font-bold">
+                            {record.stage}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 text-right font-bold text-amber-300">
+                          {record.remainingAfter}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

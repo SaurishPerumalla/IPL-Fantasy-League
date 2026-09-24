@@ -397,13 +397,13 @@ export const Dream11PitchManager: React.FC<Dream11PitchManagerProps> = ({
         </h1>
 
         {/* Match Day / Playoff Stage Pill */}
-        <div className="mt-2 bg-white text-slate-950 font-black px-6 py-1.5 rounded-full text-xs sm:text-sm tracking-wider shadow-lg flex items-center gap-2">
+        <div className="mt-2 bg-white text-slate-950 font-black px-3.5 sm:px-6 py-1.5 rounded-2xl sm:rounded-full text-xs sm:text-sm tracking-wider shadow-lg flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 max-w-full text-center">
           <span>
             {state.league_meta.playoffs_stage === 'League'
-              ? `MATCHDAY ${state.league_meta.current_matchday} OF 14 (70 MATCHES)`
+              ? `MATCHDAY ${state.league_meta.current_matchday} OF 14`
               : `PLAYOFFS: ${state.league_meta.playoffs_stage.toUpperCase()}`}
           </span>
-          <span className="text-slate-400 font-normal">|</span>
+          <span className="text-slate-400 font-normal hidden xs:inline">|</span>
           <span className="text-blue-900 font-bold text-xs uppercase tracking-normal">
             {humanTeam.name}
           </span>
@@ -559,46 +559,46 @@ export const Dream11PitchManager: React.FC<Dream11PitchManagerProps> = ({
       {/* ============================================================== */}
       {/* 2. TOOLBAR: Auto-Pick, Reset, Save, View Switcher */}
       {/* ============================================================== */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-md">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 bg-slate-900 border border-slate-800 rounded-2xl p-2.5 sm:p-3 shadow-md w-full max-w-full overflow-hidden">
         {/* View Switcher: Pitch View vs List View */}
         <div className="flex items-center space-x-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
           <button
             onClick={() => setViewMode('pitch')}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               viewMode === 'pitch'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <span>🏟️ Pitch View</span>
+            <span>🏟️ Pitch</span>
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               viewMode === 'list'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
-            <span>Player Selector (All IPL)</span>
+            <span>List <span className="hidden sm:inline">(All IPL)</span></span>
           </button>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleAutoPickOptimal}
-            className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+            className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
             title="Auto-picks optimal XI within 100 credits"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>Auto-Pick XI</span>
+            <span>Auto-Pick</span>
           </button>
 
           <button
             onClick={handleResetXI}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer"
+            className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer"
           >
             Reset
           </button>
@@ -606,10 +606,10 @@ export const Dream11PitchManager: React.FC<Dream11PitchManagerProps> = ({
           <button
             onClick={handleSaveTeam}
             disabled={isOverBudget || isOverTransfers || selectedXI.length !== 11}
-            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 px-4 py-1.5 rounded-xl text-xs font-black shadow-md transition flex items-center gap-1.5 cursor-pointer"
+            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 px-3.5 sm:px-4 py-1.5 rounded-xl text-xs font-black shadow-md transition flex items-center gap-1.5 cursor-pointer"
           >
             <CheckCircle2 className="w-4 h-4" />
-            <span>Save Dream11 Team</span>
+            <span>Save Team</span>
           </button>
         </div>
       </div>
@@ -672,7 +672,7 @@ export const Dream11PitchManager: React.FC<Dream11PitchManagerProps> = ({
         <div className="space-y-4">
           {/* The Cricket Stadium Ground */}
           <div
-            className="relative w-full rounded-3xl overflow-hidden border-2 border-emerald-900/60 shadow-2xl p-4 sm:p-6"
+            className="relative w-full max-w-full rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-emerald-900/60 shadow-2xl p-2.5 sm:p-6"
             style={{
               background: `
                 radial-gradient(ellipse at center, #1b7a3e 0%, #15803d 45%, #14532d 100%)
@@ -727,7 +727,7 @@ export const Dream11PitchManager: React.FC<Dream11PitchManagerProps> = ({
             </div>
 
             {/* Tactical Grid / Sections */}
-            <div className="relative z-10 space-y-6 sm:space-y-8 my-2">
+            <div className="relative z-10 space-y-5 sm:space-y-8 my-2">
               {/* ---------------- SECTION 1: WICKET-KEEPERS ---------------- */}
               <div className="space-y-2">
                 <div className="text-center">
@@ -735,7 +735,7 @@ export const Dream11PitchManager: React.FC<Dream11PitchManagerProps> = ({
                     Wicket-Keepers ({wkPlayers.length})
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 min-h-[90px]">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-6 min-h-[85px]">
                   {wkPlayers.map(player => (
                     <PitchPlayerCard
                       key={player.id}
@@ -773,7 +773,7 @@ export const Dream11PitchManager: React.FC<Dream11PitchManagerProps> = ({
                     Batsmen ({batPlayers.length})
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 min-h-[90px]">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-6 min-h-[85px]">
                   {batPlayers.map(player => (
                     <PitchPlayerCard
                       key={player.id}
@@ -811,7 +811,7 @@ export const Dream11PitchManager: React.FC<Dream11PitchManagerProps> = ({
                     All-Rounders ({arPlayers.length})
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 min-h-[90px]">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-6 min-h-[85px]">
                   {arPlayers.map(player => (
                     <PitchPlayerCard
                       key={player.id}
@@ -849,7 +849,7 @@ export const Dream11PitchManager: React.FC<Dream11PitchManagerProps> = ({
                     Bowlers ({bowlPlayers.length})
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 min-h-[90px]">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-6 min-h-[85px]">
                   {bowlPlayers.map(player => (
                     <PitchPlayerCard
                       key={player.id}
@@ -1479,7 +1479,7 @@ const PitchPlayerCard: React.FC<PitchPlayerCardProps> = ({
         <div className="relative flex items-center justify-center">
           {/* Circular Headshot Container */}
           <div
-            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-white font-black text-sm shadow-xl ring-2 ${
+            className={`w-11 h-11 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-white font-black text-xs sm:text-sm shadow-xl ring-2 ${
               isCaptain
                 ? 'ring-amber-400 bg-gradient-to-tr from-amber-600 to-amber-400'
                 : isVC
@@ -1542,7 +1542,7 @@ const PitchPlayerCard: React.FC<PitchPlayerCardProps> = ({
         </div>
 
         {/* Player Name Pill (Dark Navy capsule) */}
-        <div className="mt-1 bg-[#091129] border border-blue-900/60 text-white font-bold text-[10px] sm:text-[11px] px-2.5 py-0.5 rounded-full shadow-md truncate max-w-[85px] sm:max-w-[100px] text-center">
+        <div className="mt-1 bg-[#091129] border border-blue-900/60 text-white font-bold text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full shadow-md truncate max-w-[72px] sm:max-w-[100px] text-center">
           {player.shortName}
         </div>
 

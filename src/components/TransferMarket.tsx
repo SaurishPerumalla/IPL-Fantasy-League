@@ -91,49 +91,49 @@ export const TransferMarket: React.FC = () => {
         </div>
 
         {/* Transfer Workspace Preview */}
-        <div className="bg-slate-950/90 px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center space-x-4 w-full sm:w-auto">
+        <div className="bg-slate-950/90 px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="flex flex-col xs:flex-row items-center gap-2 sm:space-x-4 w-full sm:w-auto">
             {/* Outgoing Player */}
-            <div className="flex-1 sm:w-56 p-3 rounded-xl border border-rose-500/30 bg-rose-950/20">
+            <div className="w-full xs:flex-1 sm:w-56 p-2.5 sm:p-3 rounded-xl border border-rose-500/30 bg-rose-950/20">
               <div className="text-[10px] font-bold uppercase text-rose-400">OUTGOING (RELEASE)</div>
               {dropPlayer ? (
                 <div className="mt-1">
                   <div className="text-xs font-bold text-white flex items-center justify-between">
-                    <span>{dropPlayer.name}</span>
-                    <span className="text-emerald-400 font-mono">+₹{dropPlayer.currentPrice} Cr</span>
+                    <span className="truncate max-w-[120px]">{dropPlayer.name}</span>
+                    <span className="text-emerald-400 font-mono shrink-0">+₹{dropPlayer.currentPrice} Cr</span>
                   </div>
                   <div className="text-[10px] text-slate-400 font-mono mt-0.5">{dropPlayer.role} • Tier {dropPlayer.tier}</div>
                 </div>
               ) : (
-                <div className="text-xs text-slate-500 italic mt-1">Select player from your squad below</div>
+                <div className="text-xs text-slate-500 italic mt-1">Select player to drop</div>
               )}
             </div>
 
-            <div className="p-2 rounded-full bg-slate-800 text-slate-300">
-              <ArrowRightLeft className="w-4 h-4" />
+            <div className="p-1.5 rounded-full bg-slate-800 text-slate-300 shrink-0 rotate-90 xs:rotate-0">
+              <ArrowRightLeft className="w-3.5 h-3.5" />
             </div>
 
             {/* Incoming Player */}
-            <div className="flex-1 sm:w-56 p-3 rounded-xl border border-emerald-500/30 bg-emerald-950/20">
+            <div className="w-full xs:flex-1 sm:w-56 p-2.5 sm:p-3 rounded-xl border border-emerald-500/30 bg-emerald-950/20">
               <div className="text-[10px] font-bold uppercase text-emerald-400">INCOMING (SIGN)</div>
               {addPlayer ? (
                 <div className="mt-1">
                   <div className="text-xs font-bold text-white flex items-center justify-between">
-                    <span>{addPlayer.name}</span>
-                    <span className="text-rose-400 font-mono">-₹{addPlayer.currentPrice} Cr</span>
+                    <span className="truncate max-w-[120px]">{addPlayer.name}</span>
+                    <span className="text-rose-400 font-mono shrink-0">-₹{addPlayer.currentPrice} Cr</span>
                   </div>
                   <div className="text-[10px] text-slate-400 font-mono mt-0.5">{addPlayer.role} • Tier {addPlayer.tier}</div>
                 </div>
               ) : (
-                <div className="text-xs text-slate-500 italic mt-1">Select target player from market</div>
+                <div className="text-xs text-slate-500 italic mt-1">Select player to sign</div>
               )}
             </div>
           </div>
 
           {/* Balance & Action */}
-          <div className="flex items-center space-x-4">
-            <div className="text-right font-mono text-xs">
-              <div className="text-slate-400 text-[10px]">Projected Purse Balance:</div>
+          <div className="flex items-center justify-between sm:justify-end space-x-3 sm:space-x-4 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+            <div className="text-left sm:text-right font-mono text-xs">
+              <div className="text-slate-400 text-[10px]">Projected Purse:</div>
               <div className={`font-black text-sm ${isAffordable ? 'text-amber-400' : 'text-rose-400'}`}>
                 ₹{projectedPurse.toFixed(2)} Cr
               </div>
@@ -142,7 +142,7 @@ export const TransferMarket: React.FC = () => {
             <button
               onClick={handleExecuteTransfer}
               disabled={!dropPlayer || !addPlayer || !isAffordable}
-              className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-30 disabled:cursor-not-allowed text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer"
+              className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-30 disabled:cursor-not-allowed text-slate-950 font-bold px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer shrink-0"
             >
               Confirm Transfer
             </button>
@@ -160,15 +160,15 @@ export const TransferMarket: React.FC = () => {
         )}
 
         {/* Two-Pane Selector */}
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto">
+        <div className="p-3 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 overflow-y-auto max-w-full">
           {/* Pane 1: Human Squad (Drop candidate) */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-bold text-white flex items-center justify-between">
+          <div className="space-y-3 min-w-0">
+            <h4 className="text-xs sm:text-sm font-bold text-white flex items-center justify-between">
               <span>Your Current Squad ({humanTeam.roster.length} Players)</span>
-              <span className="text-xs text-slate-400 font-normal">Choose player to drop</span>
+              <span className="text-[10px] sm:text-xs text-slate-400 font-normal">Tap to drop</span>
             </h4>
 
-            <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[40vh] md:max-h-[50vh] overflow-y-auto pr-1">
               {humanTeam.roster.map(pId => {
                 const p = getPlayerById(pId);
                 if (!p) return null;
@@ -178,33 +178,33 @@ export const TransferMarket: React.FC = () => {
                   <div
                     key={p.id}
                     onClick={() => setSelectedDropId(p.id)}
-                    className={`p-3 rounded-xl border transition cursor-pointer flex items-center justify-between ${
+                    className={`p-2.5 sm:p-3 rounded-xl border transition cursor-pointer flex items-center justify-between gap-2 ${
                       isSelected
                         ? 'bg-rose-950/30 border-rose-500 text-white ring-1 ring-rose-500'
                         : 'bg-slate-950 border-slate-800 hover:border-slate-700 text-slate-200'
                     }`}
                   >
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2.5 min-w-0">
                       <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
                         style={{ backgroundColor: p.avatarColor || '#3b82f6' }}
                       >
                         {p.shortName.slice(0, 2).toUpperCase()}
                       </div>
-                      <div>
-                        <div className="text-xs font-bold flex items-center gap-1.5">
-                          <span>{p.name}</span>
-                          {p.nationality === 'OVERSEAS' && <span className="text-[10px]">✈️</span>}
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold flex items-center gap-1 truncate">
+                          <span className="truncate">{p.name}</span>
+                          {p.nationality === 'OVERSEAS' && <span className="text-[10px] shrink-0">✈️</span>}
                         </div>
-                        <div className="text-[10px] text-slate-400 font-mono">
+                        <div className="text-[10px] text-slate-400 font-mono truncate">
                           {p.role} • Tier {p.tier} • Rating {Math.max(p.battingRating, p.bowlingRating)}
                         </div>
                       </div>
                     </div>
 
-                    <div className="text-right font-mono">
+                    <div className="text-right font-mono shrink-0">
                       <div className="text-xs font-bold text-amber-400">₹{p.currentPrice} Cr</div>
-                      <div className="text-[10px] text-slate-400">Value</div>
+                      <div className="text-[9px] text-slate-400">Value</div>
                     </div>
                   </div>
                 );
@@ -213,29 +213,29 @@ export const TransferMarket: React.FC = () => {
           </div>
 
           {/* Pane 2: Free Agent Market Pool (Add candidate) */}
-          <div className="space-y-3">
+          <div className="space-y-3 min-w-0">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-white">Target Replacement Pool</h4>
-              <span className="text-xs text-slate-400 font-normal">{availableFreeAgents.length} Available</span>
+              <h4 className="text-xs sm:text-sm font-bold text-white truncate">Target Replacement Pool</h4>
+              <span className="text-[10px] sm:text-xs text-slate-400 font-normal shrink-0">{availableFreeAgents.length} Available</span>
             </div>
 
             {/* Filter & Search Bar */}
             <div className="flex items-center space-x-2">
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-0">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Search player name..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <select
                 value={roleFilter}
                 onChange={e => setRoleFilter(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none"
+                className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-slate-300 focus:outline-none shrink-0"
               >
                 <option value="ALL">All Roles</option>
                 <option value="BAT">Batters</option>
@@ -245,7 +245,7 @@ export const TransferMarket: React.FC = () => {
               </select>
             </div>
 
-            <div className="space-y-2 max-h-[44vh] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[40vh] md:max-h-[44vh] overflow-y-auto pr-1">
               {availableFreeAgents.map(p => {
                 const isSelected = selectedAddId === p.id;
 
@@ -253,33 +253,33 @@ export const TransferMarket: React.FC = () => {
                   <div
                     key={p.id}
                     onClick={() => setSelectedAddId(p.id)}
-                    className={`p-3 rounded-xl border transition cursor-pointer flex items-center justify-between ${
+                    className={`p-2.5 sm:p-3 rounded-xl border transition cursor-pointer flex items-center justify-between gap-2 ${
                       isSelected
                         ? 'bg-emerald-950/30 border-emerald-500 text-white ring-1 ring-emerald-500'
                         : 'bg-slate-950 border-slate-800 hover:border-slate-700 text-slate-200'
                     }`}
                   >
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2.5 min-w-0">
                       <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
                         style={{ backgroundColor: p.avatarColor || '#3b82f6' }}
                       >
                         {p.shortName.slice(0, 2).toUpperCase()}
                       </div>
-                      <div>
-                        <div className="text-xs font-bold flex items-center gap-1.5">
-                          <span>{p.name}</span>
-                          {p.nationality === 'OVERSEAS' && <span className="text-[10px]">✈️</span>}
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold flex items-center gap-1 truncate">
+                          <span className="truncate">{p.name}</span>
+                          {p.nationality === 'OVERSEAS' && <span className="text-[10px] shrink-0">✈️</span>}
                         </div>
-                        <div className="text-[10px] text-slate-400 font-mono">
+                        <div className="text-[10px] text-slate-400 font-mono truncate">
                           {p.role} • Tier {p.tier} • Bat: {p.battingRating} | Bowl: {p.bowlingRating}
                         </div>
                       </div>
                     </div>
 
-                    <div className="text-right font-mono">
+                    <div className="text-right font-mono shrink-0">
                       <div className="text-xs font-bold text-emerald-400">₹{p.currentPrice} Cr</div>
-                      <div className="text-[10px] text-slate-400">Base: ₹{p.basePrice} Cr</div>
+                      <div className="text-[9px] text-slate-400">Base: ₹{p.basePrice} Cr</div>
                     </div>
                   </div>
                 );

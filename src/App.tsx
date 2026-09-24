@@ -12,6 +12,10 @@ import { PlayerStatsView } from './components/PlayerStatsView';
 import { TransferMarket } from './components/TransferMarket';
 import { ScorecardModal } from './components/ScorecardModal';
 import { BoosterHubModal } from './components/BoosterHubModal';
+import { SeasonEndModal } from './components/SeasonEndModal';
+import { NewSeasonModal } from './components/NewSeasonModal';
+import { SeasonArchiveModal } from './components/SeasonArchiveModal';
+import { ManagerDashboardModal } from './components/ManagerDashboardModal';
 import { CommandConsole } from './components/CommandConsole';
 import {
   Calendar,
@@ -21,13 +25,16 @@ import {
   ArrowRightLeft,
   Terminal,
   Shirt,
-  Sparkles
+  Sparkles,
+  Flame,
+  Shield
 } from 'lucide-react';
 
 const MainDashboard: React.FC = () => {
   const { state, humanTeam, boostersState, openBoostersModal } = useGame();
   const [activeTab, setActiveTab] = useState<'my11' | 'matches' | 'schedule' | 'transfers' | 'standings' | 'stats'>('my11');
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
+  const [isManagerDashboardOpen, setIsManagerDashboardOpen] = useState(false);
 
   // If team is not created yet, show the official onboarding team creator!
   if (!state.is_team_created) {
@@ -38,17 +45,18 @@ const MainDashboard: React.FC = () => {
   const transfers = state.transfers_state;
 
   return (
-    <div className="min-h-screen bg-[#071026] text-white flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#071026] text-white flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
       {/* Official Top Header */}
       <Header
         isConsoleOpen={isConsoleOpen}
         onToggleConsole={() => setIsConsoleOpen(prev => !prev)}
+        onOpenManagerDashboard={() => setIsManagerDashboardOpen(true)}
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-        {/* Uncluttered Official IPL Fantasy Navigation Tabs */}
-        <nav aria-label="Main Navigation" className="flex flex-wrap items-center justify-between gap-3 bg-[#091436] p-1.5 rounded-2xl border border-indigo-900/50 shadow-lg">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2 sm:px-6 lg:px-8 py-3.5 sm:py-5 space-y-4 sm:space-y-5 pb-24 md:pb-8 overflow-x-hidden">
+        {/* Uncluttered Official IPL Fantasy Navigation Tabs (Desktop & Tablet) */}
+        <nav aria-label="Main Navigation" className="hidden md:flex flex-wrap items-center justify-between gap-3 bg-[#091436] p-1.5 rounded-2xl border border-indigo-900/50 shadow-lg">
           <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto no-scrollbar py-0.5">
             {/* Tab 1: My 11 */}
             <button
@@ -196,12 +204,90 @@ const MainDashboard: React.FC = () => {
         {activeTab === 'stats' && <PlayerStatsView />}
       </main>
 
-      {/* Floating CLI Toggle Button at bottom right */}
+      {/* Ergonomic Mobile Bottom Navigation Bar (< 768px thumb-zone) */}
+      <nav aria-label="Mobile Bottom Navigation" className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#071026]/95 backdrop-blur-xl border-t border-indigo-900/80 px-1 py-1.5 grid grid-cols-6 items-center shadow-2xl safe-area-bottom w-full max-w-full overflow-hidden">
+        {/* Tab 1: My 11 */}
+        <button
+          onClick={() => setActiveTab('my11')}
+          className={`flex flex-col items-center justify-center min-h-[44px] py-1 px-1 rounded-xl transition cursor-pointer ${
+            activeTab === 'my11'
+              ? 'text-emerald-400 font-bold bg-emerald-500/10'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <span className="text-base">🏟️</span>
+          <span className="text-[10px] font-mono mt-0.5 font-bold truncate">My 11</span>
+        </button>
+
+        {/* Tab 2: Matches & Live Sim */}
+        <button
+          onClick={() => setActiveTab('matches')}
+          className={`flex flex-col items-center justify-center min-h-[44px] py-1 px-1 rounded-xl transition cursor-pointer relative ${
+            activeTab === 'matches'
+              ? 'text-amber-400 font-bold bg-amber-500/10'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Flame className="w-4 h-4" />
+          <span className="text-[10px] font-mono mt-0.5 font-bold truncate">Matches</span>
+          <span className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+        </button>
+
+        {/* Tab 3: Schedule Matrix */}
+        <button
+          onClick={() => setActiveTab('schedule')}
+          className={`flex flex-col items-center justify-center min-h-[44px] py-1 px-1 rounded-xl transition cursor-pointer ${
+            activeTab === 'schedule'
+              ? 'text-violet-400 font-bold bg-violet-500/10'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Calendar className="w-4 h-4 text-violet-400" />
+          <span className="text-[10px] font-mono mt-0.5 font-bold truncate">Schedule</span>
+        </button>
+
+        {/* Tab 4: Transfers */}
+        <button
+          onClick={() => setActiveTab('transfers')}
+          className={`flex flex-col items-center justify-center min-h-[44px] py-1 px-1 rounded-xl transition cursor-pointer relative ${
+            activeTab === 'transfers'
+              ? 'text-cyan-400 font-bold bg-cyan-500/10'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <ArrowRightLeft className="w-4 h-4 text-cyan-400" />
+          <span className="text-[10px] font-mono mt-0.5 font-bold truncate">Transfers</span>
+        </button>
+
+        {/* Tab 5: Standings */}
+        <button
+          onClick={() => setActiveTab('standings')}
+          className={`flex flex-col items-center justify-center min-h-[44px] py-1 px-1 rounded-xl transition cursor-pointer ${
+            activeTab === 'standings'
+              ? 'text-amber-400 font-bold bg-amber-500/10'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <TrendingUp className="w-4 h-4" />
+          <span className="text-[10px] font-mono mt-0.5 font-bold truncate">Table</span>
+        </button>
+
+        {/* Tab 6: Manager HQ Dashboard */}
+        <button
+          onClick={() => setIsManagerDashboardOpen(true)}
+          className="flex flex-col items-center justify-center min-h-[44px] py-1 px-1 rounded-xl text-slate-400 hover:text-amber-400 transition cursor-pointer"
+        >
+          <Shield className="w-4 h-4 text-amber-400" />
+          <span className="text-[10px] font-mono mt-0.5 font-bold text-amber-400 truncate">HQ</span>
+        </button>
+      </nav>
+
+      {/* Floating Developer CLI Toggle Button (Desktop & Tablet) */}
       {!isConsoleOpen && (
         <button
           onClick={() => setIsConsoleOpen(true)}
-          className="fixed bottom-6 right-6 z-30 bg-[#091436] hover:bg-indigo-950 text-amber-400 font-mono text-xs font-bold px-3.5 py-2 rounded-xl border border-amber-500/40 shadow-2xl flex items-center space-x-2 transition cursor-pointer group"
-          title="Open FLAME Interactive Console"
+          className="hidden md:flex fixed bottom-6 right-6 z-30 bg-[#091436] hover:bg-indigo-950 text-amber-400 font-mono text-xs font-bold px-3.5 py-2 rounded-xl border border-amber-500/40 shadow-2xl items-center space-x-2 transition cursor-pointer group"
+          title="Open FLAME Power User Terminal"
         >
           <Terminal className="w-4 h-4 group-hover:animate-pulse text-amber-400" />
           <span>FLAME CLI</span>
@@ -218,6 +304,29 @@ const MainDashboard: React.FC = () => {
       <TransferMarket />
       <ScorecardModal />
       {state.activeModal === 'boosters' && <BoosterHubModal />}
+      <SeasonEndModal />
+      <NewSeasonModal />
+      <SeasonArchiveModal />
+      <ManagerDashboardModal
+        isOpen={isManagerDashboardOpen}
+        onClose={() => setIsManagerDashboardOpen(false)}
+        onOpenLineup={() => {
+          setIsManagerDashboardOpen(false);
+          setActiveTab('my11');
+        }}
+        onOpenTransfers={() => {
+          setIsManagerDashboardOpen(false);
+          setActiveTab('transfers');
+        }}
+        onOpenSchedule={() => {
+          setIsManagerDashboardOpen(false);
+          setActiveTab('schedule');
+        }}
+        onOpenStandings={() => {
+          setIsManagerDashboardOpen(false);
+          setActiveTab('standings');
+        }}
+      />
     </div>
   );
 };

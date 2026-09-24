@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { Fixture, MatchPitchReport } from '../types/fantasy';
+import { Fixture, MatchPitchReport, Player } from '../types/fantasy';
+import { getPlayerById } from '../data/players';
+import { LiveMatchRoom } from './LiveMatchRoom';
 import {
   Play,
   Award,
@@ -13,7 +15,9 @@ import {
   CheckCircle2,
   Calendar,
   Sparkles,
-  Trophy
+  Trophy,
+  Flame,
+  Tv
 } from 'lucide-react';
 
 interface MatchCenterProps {
@@ -30,14 +34,24 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({ onOpenSchedule }) => {
     fastForwardMatchdays,
     openScorecardModal,
     openLineupModal,
-    advancePlayoffStage
+    openSeasonEndModal,
+    openNewSeasonModal,
+    openSeasonArchiveModal,
+    advancePlayoffStage,
+    commitLiveMatchResult
   } = useGame();
 
   const [fastForwardCount, setFastForwardCount] = useState<number>(1);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [liveMatchFixture, setLiveMatchFixture] = useState<Fixture | null>(null);
 
   const isPlayoffs = state.league_meta.playoffs_stage !== 'League';
+  const finalFix = state.fixtures.find(f => f.playoffLabel === 'Final');
   const isFinalCompleted = state.fixtures.some(f => f.playoffLabel === 'Final' && f.isCompleted);
+  const isSeasonOver = isFinalCompleted || state.league_meta.playoffs_stage === 'Completed';
+  const championTeam = finalFix?.isCompleted && finalFix.result
+    ? allTeams.find(t => t.id === finalFix.result?.winnerTeamId)
+    : null;
 
   const handleSimulateDay = () => {
     setIsSimulating(true);
@@ -97,17 +111,44 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({ onOpenSchedule }) => {
               <span>Dream11 Lineup</span>
             </button>
 
-            {/* Simulate Button */}
-            {!isFinalCompleted && (
+            {/* Start New Year Button if Season is Over */}
+            {isSeasonOver ? (
               <button
                 type="button"
-                onClick={handleSimulateDay}
-                disabled={isSimulating}
-                className="flex items-center space-x-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm transition shadow-lg shadow-orange-500/20 active:scale-95 cursor-pointer"
+                onClick={openSeasonEndModal}
+                className="flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-sm transition shadow-lg shadow-emerald-500/25 active:scale-95 cursor-pointer"
               >
-                <Play className="w-4 h-4 fill-current" />
-                <span>{isSimulating ? 'Simulating Matches...' : 'Simulate Round (/simulate)'}</span>
+                <Sparkles className="w-4 h-4" />
+                <span>Start New Year &amp; Team</span>
               </button>
+            ) : (
+              <>
+                {/* Enter Next Live Match Button */}
+                {currentMatchdayFixtures.find(f => !f.isCompleted) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const pending = currentMatchdayFixtures.find(f => !f.isCompleted);
+                      if (pending) setLiveMatchFixture(pending);
+                    }}
+                    className="flex items-center space-x-2 bg-gradient-to-r from-rose-500 via-amber-500 to-orange-500 hover:from-rose-400 hover:to-orange-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-sm transition shadow-lg shadow-rose-500/25 active:scale-95 cursor-pointer ring-2 ring-rose-400/40"
+                  >
+                    <Flame className="w-4 h-4 fill-current animate-pulse text-slate-950" />
+                    <span>Watch Match Live (/live)</span>
+                  </button>
+                )}
+
+                {/* Simulate Button */}
+                <button
+                  type="button"
+                  onClick={handleSimulateDay}
+                  disabled={isSimulating}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm transition shadow-lg shadow-orange-500/20 active:scale-95 cursor-pointer"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>{isSimulating ? 'Simulating Matches...' : 'Simulate Round (/simulate)'}</span>
+                </button>
+              </>
             )}
 
             {/* Fast-Forward Controls */}
@@ -188,11 +229,6 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({ onOpenSchedule }) => {
                       <div>
                         <div className="text-sm font-bold text-white flex items-center gap-1.5">
                           <span>{t1?.name}</span>
-                          {t1?.is_human && (
-                            <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-1.5 py-0.2 rounded font-mono">
-                              YOU
-                            </span>
-                          )}
                         </div>
                         <div className="text-[11px] text-slate-400 font-mono">
                           {t1?.shortCode} • Rank #{state.leaderboard.findIndex(l => l.teamId === t1?.id) + 1}
@@ -229,11 +265,6 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({ onOpenSchedule }) => {
                       <div>
                         <div className="text-sm font-bold text-white flex items-center gap-1.5">
                           <span>{t2?.name}</span>
-                          {t2?.is_human && (
-                            <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-1.5 py-0.2 rounded font-mono">
-                              YOU
-                            </span>
-                          )}
                         </div>
                         <div className="text-[11px] text-slate-400 font-mono">
                           {t2?.shortCode} • Rank #{state.leaderboard.findIndex(l => l.teamId === t2?.id) + 1}
@@ -257,12 +288,61 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({ onOpenSchedule }) => {
                     )}
                   </div>
                 </div>
+
+                {/* Visual Indicator: Your Fantasy Players active in this match */}
+                {(() => {
+                  const fantasyPlayersInMatch = (humanTeam.playing_xi || [])
+                    .map(id => getPlayerById(id))
+                    .filter((p): p is Player => {
+                      if (!p) return false;
+                      return Boolean(
+                        (t1?.shortCode && p.teamAffiliation === t1.shortCode) ||
+                        (t2?.shortCode && p.teamAffiliation === t2.shortCode) ||
+                        (t1?.roster && t1.roster.includes(p.id)) ||
+                        (t2?.roster && t2.roster.includes(p.id))
+                      );
+                    });
+
+                  return (
+                    <div className="mt-1 mb-2 px-3 py-1.5 rounded-xl bg-indigo-950/40 border border-indigo-900/60 flex items-center justify-between text-xs">
+                      <div className="flex items-center space-x-1.5 truncate">
+                        <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span className="text-slate-300 font-medium truncate text-[11px] sm:text-xs">
+                          {fantasyPlayersInMatch.length > 0 ? (
+                            <span>
+                              <strong className="text-amber-400">{fantasyPlayersInMatch.length}</strong> of your Fantasy XI in this match
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">0 of your Fantasy XI playing</span>
+                          )}
+                        </span>
+                      </div>
+                      {fantasyPlayersInMatch.length > 0 && (
+                        <div className="flex items-center -space-x-1 shrink-0 ml-2">
+                          {fantasyPlayersInMatch.slice(0, 3).map(p => (
+                            <div
+                              key={p.id}
+                              title={`${p.name} (${p.role} • ${p.teamAffiliation})`}
+                              className="w-5 h-5 rounded-full border border-slate-900 flex items-center justify-center text-[9px] font-bold text-white shadow-sm"
+                              style={{ backgroundColor: p.avatarColor || '#3b82f6' }}
+                            >
+                              {p.shortName.slice(0, 1)}
+                            </div>
+                          ))}
+                          {fantasyPlayersInMatch.length > 3 && (
+                            <span className="text-[10px] text-amber-400 font-mono ml-1">+{fantasyPlayersInMatch.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
-              {/* Card Footer: Pitch conditions or Box Scorecard trigger */}
+              {/* Card Footer: Pitch conditions, Live Match Entry, or Box Scorecard trigger */}
               <div className="pt-3 border-t border-slate-800/80">
                 {hasResult && fixture.result ? (
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                       <div className="text-xs font-bold text-emerald-400">
                         {fixture.result.margin}
@@ -272,21 +352,39 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({ onOpenSchedule }) => {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => openScorecardModal(fixture)}
-                      className="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold px-3 py-1.5 rounded-lg text-xs transition cursor-pointer border border-slate-700"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Box Scorecard</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setLiveMatchFixture(fixture)}
+                        className="flex items-center space-x-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white font-bold px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer border border-slate-700 active:scale-95"
+                        title="Replay ball-by-ball simulated match"
+                      >
+                        <Play className="w-3 h-3 text-amber-400 fill-current" />
+                        <span>Replay</span>
+                      </button>
+
+                      <button
+                        onClick={() => openScorecardModal(fixture)}
+                        className="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold px-3 py-1.5 rounded-lg text-xs transition cursor-pointer border border-slate-700 active:scale-95"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Scorecard</span>
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-                    <div className="flex items-center space-x-2">
-                      <CloudSun className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Conditions: Pitch Belter & Dew</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
+                    <div className="flex items-center space-x-2 text-slate-400">
+                      <CloudSun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="truncate">Pitch Belter & Dew</span>
                     </div>
-                    <span className="text-[11px] text-amber-400">Pending Toss</span>
+
+                    <button
+                      onClick={() => setLiveMatchFixture(fixture)}
+                      className="flex items-center justify-center space-x-1.5 bg-gradient-to-r from-rose-500 via-amber-500 to-orange-500 hover:from-rose-400 hover:to-orange-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition shadow-md shadow-rose-500/20 active:scale-95 cursor-pointer ring-1 ring-rose-400/40"
+                    >
+                      <Flame className="w-3.5 h-3.5 fill-current animate-pulse text-slate-950" />
+                      <span>Watch Live / Enter Match</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -295,12 +393,70 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({ onOpenSchedule }) => {
         })}
       </div>
 
-      {currentMatchdayFixtures.length === 0 && (
+      {/* Season Concluded Banner */}
+      {isSeasonOver ? (
+        <div className="p-8 sm:p-10 text-center bg-gradient-to-r from-amber-950/30 via-slate-900 to-emerald-950/30 border border-amber-500/40 rounded-3xl text-slate-300 shadow-2xl space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30 shadow-lg">
+            <Trophy className="w-8 h-8" />
+          </div>
+          <div className="space-y-1">
+            <div className="text-xs font-mono font-black text-amber-400 tracking-widest uppercase">
+              {state.league_meta.season} Concluded
+            </div>
+            <h4 className="text-2xl sm:text-3xl font-black text-white">
+              {championTeam ? `${championTeam.name} Crowned Champions!` : 'Tournament Completed!'}
+            </h4>
+            <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto">
+              All league fixtures and playoffs matches have finished. Ready for the next championship chase? Begin a brand-new year with 100 new transfers, restored boosters, and a clean player draft!
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={openSeasonEndModal}
+              className="flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black px-6 py-3 rounded-xl text-sm transition shadow-lg shadow-emerald-500/25 active:scale-95 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Start New Year &amp; Pick 11</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={openSeasonEndModal}
+              className="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold px-4 py-3 rounded-xl text-xs transition border border-slate-700 cursor-pointer"
+            >
+              <Award className="w-4 h-4" />
+              <span>Season Awards &amp; Caps</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={openSeasonArchiveModal}
+              className="flex items-center space-x-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white font-bold px-4 py-3 rounded-xl text-xs transition border border-slate-800 cursor-pointer"
+            >
+              <Trophy className="w-4 h-4 text-amber-400" />
+              <span>Trophy Cabinet</span>
+            </button>
+          </div>
+        </div>
+      ) : currentMatchdayFixtures.length === 0 ? (
         <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-2xl text-slate-400">
           <Trophy className="w-12 h-12 text-amber-400 mx-auto mb-3" />
           <h4 className="text-lg font-bold text-white">All Fixtures Completed for This Stage</h4>
           <p className="text-xs mt-1">Review the final tournament standings or reset for a new season.</p>
         </div>
+      ) : null}
+
+      {/* Live Match Viewer Room Modal */}
+      {liveMatchFixture && (
+        <LiveMatchRoom
+          fixture={liveMatchFixture}
+          onClose={() => setLiveMatchFixture(null)}
+          onMatchCompleted={(result) => {
+            commitLiveMatchResult(liveMatchFixture.id, result);
+          }}
+        />
       )}
     </div>
   );

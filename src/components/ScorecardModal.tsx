@@ -164,53 +164,58 @@ export const ScorecardModal: React.FC = () => {
               </div>
 
               {/* Batting Card */}
-              <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
-                <div className="px-4 py-2.5 bg-slate-900/60 border-b border-slate-800 font-bold text-xs text-white">
+              <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden w-full max-w-full">
+                <div className="px-3 sm:px-4 py-2.5 bg-slate-900/60 border-b border-slate-800 font-bold text-xs text-white">
                   Batting - {currentInnings.teamName}
                 </div>
-                <div className="overflow-x-auto">
+                <div className="w-full max-w-full overflow-hidden">
                   <table className="w-full text-left text-xs font-mono">
-                    <thead className="bg-slate-950 text-slate-400 border-b border-slate-800">
+                    <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 text-[11px]">
                       <tr>
-                        <th className="py-2 px-4 font-semibold">Batter</th>
-                        <th className="py-2 px-4 font-semibold">Dismissal</th>
-                        <th className="py-2 px-2 text-right font-semibold">R</th>
-                        <th className="py-2 px-2 text-right font-semibold">B</th>
-                        <th className="py-2 px-2 text-right font-semibold">4s</th>
-                        <th className="py-2 px-2 text-right font-semibold">6s</th>
-                        <th className="py-2 px-4 text-right font-semibold">SR</th>
+                        <th className="py-2 px-2.5 sm:px-4 font-semibold">Batter</th>
+                        <th className="hidden sm:table-cell py-2 px-4 font-semibold">Dismissal</th>
+                        <th className="py-2 px-1.5 sm:px-2 text-right font-semibold">R</th>
+                        <th className="py-2 px-1.5 sm:px-2 text-right font-semibold">B</th>
+                        <th className="py-2 px-1.5 sm:px-2 text-right font-semibold">4s</th>
+                        <th className="py-2 px-1.5 sm:px-2 text-right font-semibold">6s</th>
+                        <th className="py-2 px-2 sm:px-4 text-right font-semibold">SR</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60">
                       {currentInnings.batters.map((b, idx) => (
                         <tr key={idx} className="hover:bg-slate-900/40">
-                          <td className="py-2.5 px-4 font-sans font-bold text-white flex items-center gap-1.5">
-                            <span>{b.name}</span>
-                            <span className="text-[10px] text-slate-500 font-mono">({b.role})</span>
+                          <td className="py-2 px-2.5 sm:px-4 font-sans font-bold text-white">
+                            <div className="flex items-center gap-1">
+                              <span className="truncate max-w-[110px] sm:max-w-none">{b.name}</span>
+                              <span className="text-[10px] text-slate-500 font-mono">({b.role})</span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-normal italic font-sans sm:hidden truncate max-w-[130px]">
+                              {b.dismissal}
+                            </div>
                           </td>
-                          <td className="py-2.5 px-4 text-slate-400 text-[11px] italic font-sans">{b.dismissal}</td>
-                          <td className="py-2.5 px-2 text-right font-bold text-amber-400 text-sm">{b.runs}</td>
-                          <td className="py-2.5 px-2 text-right text-slate-400">{b.balls}</td>
-                          <td className="py-2.5 px-2 text-right text-slate-300">{b.fours}</td>
-                          <td className="py-2.5 px-2 text-right text-slate-300">{b.sixes}</td>
-                          <td className="py-2.5 px-4 text-right text-slate-300 font-semibold">{b.strikeRate.toFixed(1)}</td>
+                          <td className="hidden sm:table-cell py-2.5 px-4 text-slate-400 text-[11px] italic font-sans">{b.dismissal}</td>
+                          <td className="py-2 px-1.5 sm:px-2 text-right font-bold text-amber-400 text-xs sm:text-sm">{b.runs}</td>
+                          <td className="py-2 px-1.5 sm:px-2 text-right text-slate-400 text-xs">{b.balls}</td>
+                          <td className="py-2 px-1.5 sm:px-2 text-right text-slate-300 text-xs">{b.fours}</td>
+                          <td className="py-2 px-1.5 sm:px-2 text-right text-slate-300 text-xs">{b.sixes}</td>
+                          <td className="py-2 px-2 sm:px-4 text-right text-slate-300 font-semibold text-xs">{b.strikeRate.toFixed(1)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
 
-                <div className="p-3 bg-slate-900/30 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-400">
+                <div className="p-2.5 sm:p-3 bg-slate-900/30 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-xs font-mono text-slate-400 gap-2">
                   <div>Extras: <strong className="text-white">{currentInnings.extras}</strong> (w 2, nb 1, b 1)</div>
                   <div>
-                    Total: <strong className="text-amber-400 text-sm font-black">{currentInnings.totalRuns}/{currentInnings.wickets}</strong> ({currentInnings.overs} overs)
+                    Total: <strong className="text-amber-400 text-sm font-black">{currentInnings.totalRuns}/{currentInnings.wickets}</strong> ({currentInnings.overs} ov)
                   </div>
                 </div>
               </div>
 
               {/* Fall of Wickets */}
               {currentInnings.fallOfWickets.length > 0 && (
-                <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-xs">
+                <div className="bg-slate-950 p-3 sm:p-3.5 rounded-xl border border-slate-800 text-xs">
                   <div className="text-slate-400 font-bold mb-1">Fall of Wickets:</div>
                   <div className="text-slate-300 font-mono text-[11px] leading-relaxed">
                     {currentInnings.fallOfWickets.join(', ')}
@@ -219,34 +224,36 @@ export const ScorecardModal: React.FC = () => {
               )}
 
               {/* Bowling Card */}
-              <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
-                <div className="px-4 py-2.5 bg-slate-900/60 border-b border-slate-800 font-bold text-xs text-white">
+              <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden w-full max-w-full">
+                <div className="px-3 sm:px-4 py-2.5 bg-slate-900/60 border-b border-slate-800 font-bold text-xs text-white">
                   Bowling
                 </div>
-                <div className="overflow-x-auto">
+                <div className="w-full max-w-full overflow-hidden">
                   <table className="w-full text-left text-xs font-mono">
-                    <thead className="bg-slate-950 text-slate-400 border-b border-slate-800">
+                    <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 text-[11px]">
                       <tr>
-                        <th className="py-2 px-4 font-semibold">Bowler</th>
-                        <th className="py-2 px-2 text-right font-semibold">O</th>
-                        <th className="py-2 px-2 text-right font-semibold">M</th>
-                        <th className="py-2 px-2 text-right font-semibold">R</th>
-                        <th className="py-2 px-2 text-right font-semibold">W</th>
-                        <th className="py-2 px-4 text-right font-semibold">ECON</th>
+                        <th className="py-2 px-2.5 sm:px-4 font-semibold">Bowler</th>
+                        <th className="py-2 px-1.5 sm:px-2 text-right font-semibold">O</th>
+                        <th className="py-2 px-1.5 sm:px-2 text-right font-semibold">M</th>
+                        <th className="py-2 px-1.5 sm:px-2 text-right font-semibold">R</th>
+                        <th className="py-2 px-1.5 sm:px-2 text-right font-semibold">W</th>
+                        <th className="py-2 px-2 sm:px-4 text-right font-semibold">ECON</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60">
                       {currentInnings.bowlers.map((bw, idx) => (
                         <tr key={idx} className="hover:bg-slate-900/40">
-                          <td className="py-2.5 px-4 font-sans font-bold text-white flex items-center gap-1.5">
-                            <span>{bw.name}</span>
-                            <span className="text-[10px] text-slate-500 font-mono">({bw.role})</span>
+                          <td className="py-2 px-2.5 sm:px-4 font-sans font-bold text-white">
+                            <div className="flex items-center gap-1">
+                              <span className="truncate max-w-[120px] sm:max-w-none">{bw.name}</span>
+                              <span className="text-[10px] text-slate-500 font-mono">({bw.role})</span>
+                            </div>
                           </td>
-                          <td className="py-2.5 px-2 text-right text-slate-300">{bw.overs}</td>
-                          <td className="py-2.5 px-2 text-right text-slate-400">{bw.maidens}</td>
-                          <td className="py-2.5 px-2 text-right text-slate-300">{bw.runs}</td>
-                          <td className="py-2.5 px-2 text-right font-bold text-emerald-400 text-sm">{bw.wickets}</td>
-                          <td className="py-2.5 px-4 text-right text-slate-300 font-semibold">{bw.economy.toFixed(2)}</td>
+                          <td className="py-2 px-1.5 sm:px-2 text-right text-slate-300">{bw.overs}</td>
+                          <td className="py-2 px-1.5 sm:px-2 text-right text-slate-400">{bw.maidens}</td>
+                          <td className="py-2 px-1.5 sm:px-2 text-right text-slate-300">{bw.runs}</td>
+                          <td className="py-2 px-1.5 sm:px-2 text-right font-bold text-emerald-400 text-xs sm:text-sm">{bw.wickets}</td>
+                          <td className="py-2 px-2 sm:px-4 text-right text-slate-300 font-semibold text-xs">{bw.economy.toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -4,7 +4,16 @@ import { Trophy, Award, Sparkles, CheckCircle2, Flame, ArrowRight, Shield } from
 import confetti from 'canvas-confetti';
 
 export const PlayoffsView: React.FC = () => {
-  const { state, allTeams, simulateCurrentMatchday, advancePlayoffStage, openScorecardModal } = useGame();
+  const {
+    state,
+    allTeams,
+    simulateCurrentMatchday,
+    advancePlayoffStage,
+    openScorecardModal,
+    openSeasonEndModal,
+    openNewSeasonModal,
+    openSeasonArchiveModal
+  } = useGame();
 
   const q1Fix = state.fixtures.find(f => f.playoffLabel === 'Qualifier 1');
   const elimFix = state.fixtures.find(f => f.playoffLabel === 'Eliminator');
@@ -49,14 +58,45 @@ export const PlayoffsView: React.FC = () => {
               🏆
             </span>
             <div className="text-xs font-mono font-black tracking-widest uppercase text-slate-950">
-              IPL 2026 CHAMPIONS
+              {state.league_meta.season} CHAMPIONS
             </div>
             <h2 className="text-4xl sm:text-5xl font-black tracking-tight text-slate-950">
               {championTeam.name}
             </h2>
             <p className="text-sm font-bold text-amber-950 max-w-md mx-auto">
-              Crowned champions of Indian Premier League 2026! A historic tournament run sealed in glory.
+              Crowned champions of {state.league_meta.season}! A historic tournament run sealed in glory.
             </p>
+
+            {/* Action Buttons right in Championship Banner */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
+              <button
+                type="button"
+                onClick={openSeasonEndModal}
+                className="flex items-center space-x-2 bg-slate-950 hover:bg-slate-900 text-amber-400 hover:text-amber-300 font-black px-6 py-3 rounded-2xl text-sm transition shadow-xl cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <span>Start New Year &amp; Pick 11</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={openSeasonEndModal}
+                className="flex items-center space-x-1.5 bg-yellow-400/80 hover:bg-yellow-400 text-slate-950 font-bold px-4 py-3 rounded-2xl text-xs transition cursor-pointer border border-yellow-300"
+              >
+                <Award className="w-4 h-4" />
+                <span>Season Awards &amp; Caps</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={openSeasonArchiveModal}
+                className="flex items-center space-x-1.5 bg-yellow-400/80 hover:bg-yellow-400 text-slate-950 font-bold px-4 py-3 rounded-2xl text-xs transition cursor-pointer border border-yellow-300"
+              >
+                <Trophy className="w-4 h-4" />
+                <span>Trophy Cabinet</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -67,34 +107,48 @@ export const PlayoffsView: React.FC = () => {
           <div>
             <h3 className="text-lg font-black text-white flex items-center gap-2">
               <Trophy className="w-5 h-5 text-amber-400" />
-              IPL 2026 Playoffs Bracket
+              {state.league_meta.season} Playoffs Bracket
             </h3>
             <p className="text-xs text-slate-400">
               The road to the championship trophy at Chepauk
             </p>
           </div>
 
-          {/* Advance button if Q1 and Eliminator are done but Q2 isn't created */}
-          {q1Fix?.isCompleted && elimFix?.isCompleted && !q2Fix && (
-            <button
-              onClick={advancePlayoffStage}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5"
-            >
-              <span>Set Up Qualifier 2</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Start New Year Quick Action if final won */}
+            {championTeam && (
+              <button
+                type="button"
+                onClick={openSeasonEndModal}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Start Next Year</span>
+              </button>
+            )}
 
-          {/* Advance to Final if Q2 is done but Final isn't created */}
-          {q2Fix?.isCompleted && !finalFix && (
-            <button
-              onClick={advancePlayoffStage}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5"
-            >
-              <span>Set Up Grand Final</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          )}
+            {/* Advance button if Q1 and Eliminator are done but Q2 isn't created */}
+            {q1Fix?.isCompleted && elimFix?.isCompleted && !q2Fix && (
+              <button
+                onClick={advancePlayoffStage}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5"
+              >
+                <span>Set Up Qualifier 2</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {/* Advance to Final if Q2 is done but Final isn't created */}
+            {q2Fix?.isCompleted && !finalFix && (
+              <button
+                onClick={advancePlayoffStage}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5"
+              >
+                <span>Set Up Grand Final</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tree Grid */}

@@ -99,7 +99,6 @@ export const SchedulePlannerView: React.FC<{ onNavigateToTransfers?: () => void 
     return (
       t1?.shortCode === franchiseCode ||
       t1?.id === franchiseCode ||
-      (franchiseCode === 'CSK' && (t1?.is_human || t2?.is_human)) || // Base preset alignment
       t2?.shortCode === franchiseCode ||
       t2?.id === franchiseCode
     );
@@ -111,13 +110,13 @@ export const SchedulePlannerView: React.FC<{ onNavigateToTransfers?: () => void 
     const t2 = teamMap[fixture.team2Id];
 
     return myXIPlayers.filter(p => {
-      if (t1?.is_human && t1.playing_xi?.includes(p.id)) return true;
-      if (t2?.is_human && t2.playing_xi?.includes(p.id)) return true;
       return (
         p.teamAffiliation === t1?.shortCode ||
         p.teamAffiliation === t1?.id ||
+        (t1?.roster && t1.roster.includes(p.id)) ||
         p.teamAffiliation === t2?.shortCode ||
-        p.teamAffiliation === t2?.id
+        p.teamAffiliation === t2?.id ||
+        (t2?.roster && t2.roster.includes(p.id))
       );
     });
   };
@@ -538,11 +537,6 @@ export const SchedulePlannerView: React.FC<{ onNavigateToTransfers?: () => void 
                           <div>
                             <div className="text-sm font-bold text-white flex items-center gap-1.5">
                               <span>{t1?.name}</span>
-                              {t1?.is_human && (
-                                <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-1.5 py-0.2 rounded font-mono">
-                                  YOUR 11
-                                </span>
-                              )}
                             </div>
                             <div className="text-[11px] text-slate-400 font-mono">
                               {t1?.shortCode}
@@ -573,11 +567,6 @@ export const SchedulePlannerView: React.FC<{ onNavigateToTransfers?: () => void 
                           <div>
                             <div className="text-sm font-bold text-white flex items-center gap-1.5">
                               <span>{t2?.name}</span>
-                              {t2?.is_human && (
-                                <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-1.5 py-0.2 rounded font-mono">
-                                  YOUR 11
-                                </span>
-                              )}
                             </div>
                             <div className="text-[11px] text-slate-400 font-mono">
                               {t2?.shortCode}
@@ -660,7 +649,7 @@ export const SchedulePlannerView: React.FC<{ onNavigateToTransfers?: () => void 
       {/* SUBTAB 2: FRANCHISE MATRIX GRID (HEATMAP PLANNER)                         */}
       {/* ========================================================================= */}
       {activeSubTab === 'matrix' && (
-        <div className="space-y-4">
+        <div className="space-y-4 w-full max-w-full overflow-hidden">
           <div className="bg-[#091436] p-4 rounded-2xl border border-indigo-900/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -668,12 +657,12 @@ export const SchedulePlannerView: React.FC<{ onNavigateToTransfers?: () => void 
                 <span>Season 2026 Franchise Fixture Matrix</span>
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Horizontal view of all 10 franchises across Matchdays 1 to 14.
-                Rows marked with <span className="text-amber-400 font-bold">👑</span> indicate franchises where you have active players!
+                Overview of all 10 franchises across Matchdays 1 to 14.
+                Franchises marked with <span className="text-amber-400 font-bold">👑</span> have active players in your 11!
               </p>
             </div>
 
-            <div className="flex items-center space-x-3 text-xs font-mono">
+            <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded bg-emerald-500/30 border border-emerald-500" />
                 <span className="text-slate-300">Batting Track</span>
@@ -689,8 +678,98 @@ export const SchedulePlannerView: React.FC<{ onNavigateToTransfers?: () => void 
             </div>
           </div>
 
-          {/* Matrix Table Container with Horizontal Scroll */}
-          <div className="bg-[#081230] rounded-2xl border border-indigo-900/60 overflow-hidden shadow-xl">
+          {/* Mobile Zero-Scroll Franchise Matchday Feed (< 768px) */}
+          <div className="md:hidden space-y-3">
+            <div className="bg-[#081230] p-3 rounded-2xl border border-indigo-900/60 flex items-center justify-between gap-2">
+              <span className="text-xs font-bold text-slate-300">Select Franchise:</span>
+              <select
+                value={selectedFranchiseFilter}
+                onChange={e => setSelectedFranchiseFilter(e.target.value)}
+                className="bg-[#050c1e] text-xs font-bold text-amber-400 border border-indigo-950 rounded-xl px-3 py-1.5 outline-none cursor-pointer"
+              >
+                {FRANCHISES.map(f => (
+                  <option key={f.code} value={f.code}>
+                    {f.emoji} {f.code} {f.code !== 'ALL' && myPlayersByFranchise[f.code] ? `(${myPlayersByFranchise[f.code].length} in My 11)` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Vertical list of all 14 matchdays for this team with zero horizontal scrolling */}
+            <div className="space-y-2">
+              {Array.from({ length: totalMatchdays }, (_, i) => i + 1).map(md => {
+                const targetCode = selectedFranchiseFilter === 'ALL' ? (humanTeam.shortCode || 'CSK') : selectedFranchiseFilter;
+                const fixture = state.fixtures.find(
+                  f => f.matchday === md && fixtureInvolvesFranchise(f, targetCode)
+                );
+
+                if (!fixture) return null;
+
+                const t1 = teamMap[fixture.team1Id];
+                const t2 = teamMap[fixture.team2Id];
+                const isHome = t1?.shortCode === targetCode || t1?.id === targetCode;
+                const opponent = isHome ? (t2?.name || 'Opponent') : (t1?.name || 'Opponent');
+                const oppLogo = isHome ? (t2?.logoEmoji || '🏏') : (t1?.logoEmoji || '🏏');
+                const pitch = getVenuePitchInfo(fixture.venue);
+                const isCompleted = fixture.isCompleted;
+                const isCurrent = md === currentMatchday;
+                const myPlayers = getMyPlayersInFixture(fixture);
+
+                return (
+                  <div
+                    key={md}
+                    className={`p-3 rounded-xl border flex items-center justify-between gap-2 transition ${
+                      isCompleted
+                        ? 'bg-[#081230]/70 border-indigo-950/60 opacity-80'
+                        : isCurrent
+                        ? 'bg-gradient-to-r from-[#09153a] to-[#0d1e52] border-amber-500/50 shadow-md ring-1 ring-amber-500/20'
+                        : 'bg-[#091436] border-indigo-900/60'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black shrink-0 ${
+                        isCurrent
+                          ? 'bg-amber-500 text-slate-950'
+                          : 'bg-indigo-950 text-indigo-300 border border-indigo-800/40'
+                      }`}>
+                        MD {md}
+                      </span>
+                      <span className="text-base shrink-0">{oppLogo}</span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-white truncate">
+                          {isHome ? `vs ${opponent}` : `@ ${opponent}`}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono truncate">
+                          {fixture.venue.split(',')[0]} • {pitch.split(' ')[0]}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      {isCompleted ? (
+                        <span className="text-[10px] bg-slate-900 text-slate-400 px-2 py-0.5 rounded border border-slate-800">
+                          Completed
+                        </span>
+                      ) : (
+                        <div className="flex flex-col items-end">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            myPlayers.length > 0
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono'
+                              : 'text-slate-400'
+                          }`}>
+                            {myPlayers.length > 0 ? `${myPlayers.length} in My 11` : 'Scheduled'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Tablet & Desktop Matrix Table Container with Horizontal Scroll (>= 768px) */}
+          <div className="hidden md:block bg-[#081230] rounded-2xl border border-indigo-900/60 overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left border-collapse min-w-[900px]">
                 <thead>

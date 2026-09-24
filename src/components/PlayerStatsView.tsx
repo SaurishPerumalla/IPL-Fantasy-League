@@ -125,9 +125,79 @@ export const PlayerStatsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Players Table */}
-      <div className="bg-[#091436] rounded-2xl border border-indigo-900/50 overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
+      {/* Players Table / Mobile Cards */}
+      <div className="bg-[#091436] rounded-2xl border border-indigo-900/50 overflow-hidden shadow-xl w-full max-w-full">
+        {/* Mobile Zero-Scroll Player Cards (< 768px) */}
+        <div className="md:hidden divide-y divide-indigo-950/80">
+          {filteredPlayers.map(player => {
+            const isInUser11 = humanTeam.playing_xi.includes(player.id);
+            const isCaptain = humanTeam.captain === player.id;
+            const isVC = humanTeam.vice_captain === player.id;
+
+            return (
+              <div key={player.id} className="p-3.5 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-xs shadow shrink-0"
+                      style={{ backgroundColor: player.avatarColor || '#3b82f6' }}
+                    >
+                      {player.shortName.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-white text-xs truncate flex items-center gap-1">
+                        <span className="truncate">{player.name}</span>
+                        {player.nationality === 'OVERSEAS' && <span className="text-[10px]">✈️</span>}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5">
+                        <span className="text-amber-300 font-bold">{player.teamAffiliation}</span>
+                        <span>•</span>
+                        <span className="bg-[#050c1e] text-slate-300 px-1.5 py-0.2 rounded font-bold border border-indigo-950">
+                          {player.role}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <div className={`font-mono font-black text-sm ${player.currentPrice >= 10.5 ? 'text-amber-400' : 'text-slate-200'}`}>
+                      ₹{player.currentPrice.toFixed(1)} Cr
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono">Tier {player.tier}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 text-[11px] font-mono text-slate-400">
+                  <div className="flex items-center space-x-2">
+                    <span>BAT: <strong className="text-white">{player.battingRating}</strong></span>
+                    <span>•</span>
+                    <span>BOWL: <strong className="text-white">{player.bowlingRating}</strong></span>
+                  </div>
+
+                  <div>
+                    {isInUser11 ? (
+                      <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                        <span>✓ My XI</span>
+                        {isCaptain && <span className="text-amber-400 font-black">(C)</span>}
+                        {isVC && <span className="text-cyan-400 font-black">(VC)</span>}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={openTransferModal}
+                        className="bg-indigo-950 hover:bg-indigo-900 text-indigo-300 hover:text-white px-2.5 py-0.5 rounded-lg text-[10px] font-bold border border-indigo-800/60 cursor-pointer transition"
+                      >
+                        Trade
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Tablet & Desktop Table (>= 768px) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs font-sans">
             <thead className="bg-[#0b1842] text-[10px] font-bold uppercase text-slate-400 tracking-wider border-b border-indigo-900/60">
               <tr>

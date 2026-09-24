@@ -221,6 +221,39 @@ export interface LeaderboardEntry {
   totalFantasyPoints: number;
 }
 
+export interface UserFantasyTeam {
+  id: string; // 'user_fantasy_team'
+  name: string;
+  shortCode: string;
+  logoEmoji: string;
+  color: string;
+  secondaryColor?: string;
+  budget_remaining: number; // 100.0 Cr
+  playing_xi: string[]; // 11 selected player IDs
+  roster: string[];
+  captain: string;
+  vice_captain: string;
+  impact_sub: string;
+  substitutes: string[];
+  totalFantasyPoints: number;
+  matchdayPoints: { [matchday: number]: number };
+}
+
+export interface FantasyManagerEntry {
+  id: string;
+  teamName: string;
+  managerName: string;
+  isHuman: boolean;
+  rank: number;
+  logoEmoji: string;
+  playing_xi: string[];
+  captain: string;
+  vice_captain: string;
+  totalFantasyPoints: number;
+  matchdayPoints: { [matchday: number]: number };
+  transfersCount: number;
+}
+
 export interface FantasyTransferRecord {
   id: string;
   matchday: number;
@@ -283,17 +316,44 @@ export interface BoosterUsageState {
   savedFreeHitLineup?: string[] | null;
 }
 
+export interface SeasonArchive {
+  id: string;
+  season: string; // e.g. "IPL 2026"
+  year: number; // e.g. 2026
+  championTeamId: string;
+  championTeamName: string;
+  championEmoji?: string;
+  runnerUpTeamId: string;
+  runnerUpTeamName: string;
+  runnerUpEmoji?: string;
+  finalScoreline?: string;
+  finalMargin?: string;
+  userTeamName: string;
+  userRank: number;
+  userTotalPoints: number;
+  userFantasyPoints: number;
+  transfersUsedTotal: number;
+  orangeCap: { name: string; runs: number; team: string };
+  purpleCap: { name: string; wickets: number; team: string };
+  mvp?: { name: string; points: number; team: string };
+  completedAt: string;
+}
+
 export interface FLAMEState {
   is_team_created?: boolean;
   league_meta: LeagueMeta;
   transfers_state: FantasyTransfersState;
   boosters_state: BoosterUsageState;
+  season_history?: SeasonArchive[];
+  show_season_end_modal?: boolean;
   teams: Team[];
   leaderboard: LeaderboardEntry[];
+  user_fantasy_team?: UserFantasyTeam;
+  fantasy_leaderboard?: FantasyManagerEntry[];
   current_fixture: Fixture | null;
   fixtures: Fixture[];
   allPlayers: Player[];
-  activeModal: 'setup' | 'lineup' | 'scorecard' | 'auction' | 'transfer' | 'boosters' | 'none';
+  activeModal: 'setup' | 'lineup' | 'scorecard' | 'auction' | 'transfer' | 'boosters' | 'new_season' | 'season_archive' | 'none';
   selectedFixtureForScorecard: Fixture | null;
   selectedPlayerForDetails: Player | null;
   commandHistory: {

@@ -25,10 +25,10 @@ const IPL_TEAMS = ['ALL', 'CSK', 'MI', 'RCB', 'KKR', 'SRH', 'RR', 'DC', 'GT', 'L
 const TEAM_EMOJIS = ['⚡', '🦁', '👑', '🦅', '🐅', '🔥', '🏏', '🌪️', '🛡️', '⚔️'];
 
 export const OfficialIPLFantasyCreator: React.FC = () => {
-  const { createInitialFantasyTeam, syncSquadsWithAI } = useGame();
+  const { state, humanTeam, createInitialFantasyTeam, syncSquadsWithAI } = useGame();
 
-  const [teamName, setTeamName] = useState('My IPL XI');
-  const [selectedEmoji, setSelectedEmoji] = useState('⚡');
+  const [teamName, setTeamName] = useState(humanTeam?.name && humanTeam.name !== 'User XI' ? humanTeam.name : 'My IPL XI');
+  const [selectedEmoji, setSelectedEmoji] = useState(humanTeam?.logoEmoji || '⚡');
   const [selectedRoleTab, setSelectedRoleTab] = useState<PlayerRole | 'ALL'>('ALL');
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -267,13 +267,20 @@ export const OfficialIPLFantasyCreator: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs font-bold uppercase tracking-widest text-amber-400">TATA IPL 2026</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-amber-400">
+                    TATA {state.league_meta.season}
+                  </span>
                   <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">
                     Official Fantasy
                   </span>
+                  {state.season_history && state.season_history.length > 0 && (
+                    <span className="bg-indigo-500/20 text-indigo-300 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-indigo-500/30">
+                      Year {state.season_history.length + 1} Campaign
+                    </span>
+                  )}
                 </div>
                 <h1 className="text-lg font-black tracking-tight text-white">
-                  Create Your Fantasy 11
+                  Draft Your Fantasy 11
                 </h1>
               </div>
             </div>
@@ -644,16 +651,16 @@ export const OfficialIPLFantasyCreator: React.FC = () => {
                       </div>
 
                       {/* Right ratings & price */}
-                      <div className="flex items-center space-x-6">
-                        <div className="text-right">
+                      <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
+                        <div className="text-right hidden xs:block">
                           <span className="text-xs font-mono font-bold text-slate-300">
                             {player.battingRating > player.bowlingRating ? player.battingRating : player.bowlingRating}
                           </span>
                           <span className="text-[10px] text-slate-500 block">Skill</span>
                         </div>
 
-                        <div className="w-16 text-right">
-                          <span className={`text-sm font-mono font-extrabold ${
+                        <div className="text-right min-w-[44px]">
+                          <span className={`text-xs sm:text-sm font-mono font-extrabold ${
                             player.currentPrice >= 10.5 ? 'text-amber-400' : 'text-slate-200'
                           }`}>
                             ₹{player.currentPrice.toFixed(1)}
@@ -661,7 +668,7 @@ export const OfficialIPLFantasyCreator: React.FC = () => {
                           <span className="text-[10px] text-slate-400 block">Cr</span>
                         </div>
 
-                        <div className="w-16 text-center">
+                        <div className="w-10 text-center">
                           {isSelected ? (
                             <button
                               type="button"
